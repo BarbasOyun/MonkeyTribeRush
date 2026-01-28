@@ -2,10 +2,9 @@
 --Updated for R15 avatar by StarWars
 --Updated by RedRocStudio for Monkey Tribe Rush
 
---TODO : Custom Anims + VFX + Test Multiplayer + Combo
-
---Mace Server -> Dmg + Sounds
+--Weapon Server -> Dmg + Sounds
 local Players = game:GetService("Players")
+local PlayersStats = require(script.Parent.PlayersStats)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
@@ -17,6 +16,7 @@ local gizmo = require(ReplicatedStorage.Shared.gizmo)
 --Remote Events
 local attackEvent = Events.ToolAttack
 local equipEvent = Events.ToolEquip
+local attackHitEvent = Events.AttackHit
 
 -- Players
 local PlayersWeaponInfo = {}
@@ -34,6 +34,11 @@ end
 
 function OnUnequipped(weapon)
 	local player = weapon.Parent.Parent -- Backpack
+
+	if not player then
+		return
+	end
+
 	PlayersWeaponInfo[player] = nil
 	print(weapon.Name .. " Unequipped by player: " .. player.Name)
 	equipEvent:FireClient(player, false)
@@ -61,23 +66,14 @@ local function DisplayHitBox(cFrame, Range)
 	end)
 end
 
-local function Attack(player)
-	-- Try to Attack using Player's Weapon
+local function WeaponDamage(player)
 	local weaponInfo = PlayersWeaponInfo[player]
 	if not weaponInfo then
 		return
 	end
 
-	-- IsAttackReady
-	local currentTime = tick()
-	if weaponInfo.lastAttack and currentTime - weaponInfo.lastAttack < weaponInfo.Cooldown then
-		return
-	end
-	weaponInfo.lastAttack = currentTime
-
-	-- print("Attack By : " .. player.Name)
 	PlayersWeaponInfo[player].Sounds.Slash:Play()
-	attackEvent:FireClient(player)
+	player.Character.Humanoid.WalkSpeed = PlayersStats[player].Mobility
 
 	--Hit + Damage
 	DisplayHitBox(weaponInfo.AttackPoint.WorldCFrame, weaponInfo.Range)
@@ -94,8 +90,28 @@ local function Attack(player)
 	end
 end
 
+local function Attack(player)
+	-- Try to Attack using Player's Weapon
+	local weaponInfo = PlayersWeaponInfo[player]
+	if not weaponInfo then
+		return
+	end
+
+	-- IsAttackReady
+	local currentTime = tick()
+	if weaponInfo.lastAttack and currentTime - weaponInfo.lastAttack < weaponInfo.AttackSpeed then
+		return
+	end
+	weaponInfo.lastAttack = currentTime
+
+	-- print("Attack By : " .. player.Name)
+	player.Character.Humanoid.WalkSpeed *= 0.5
+	attackEvent:FireClient(player)
+end
+
 -- EVENTS SETUP
 attackEvent.OnServerEvent:Connect(Attack)
+attackHitEvent.OnServerEvent:Connect(WeaponDamage)
 
 local function CreateWeaponInfo(weapon)
 	local handle = weapon:WaitForChild("Handle")
@@ -107,7 +123,7 @@ local function CreateWeaponInfo(weapon)
 		WeaponType = WeaponConfig[weapon.Name].WeaponType,
 		Damage = WeaponConfig[weapon.Name].BaseDamage,
 		Range = WeaponConfig[weapon.Name].Range,
-		Cooldown = WeaponConfig[weapon.Name].Cooldown,
+		AttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		lastAttack = 0,
 		Sounds = {
 			Unsheath = handle:WaitForChild("Unsheath"),

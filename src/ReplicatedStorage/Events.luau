@@ -8,7 +8,7 @@ end
 --print("Events module loaded")
 
 return {
-	TryAttack = createRemoteEvent("TryAttack"),
 	ToolAttack = createRemoteEvent("ToolAttack"),
 	ToolEquip = createRemoteEvent("ToolEquip"),
+	AttackHit = createRemoteEvent("AttackHit"),
 }

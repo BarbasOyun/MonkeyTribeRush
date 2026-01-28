@@ -1,22 +1,22 @@
 return {
 	["IronMace"] = {
 		WeaponType = "Mace",
-		BaseDamage = 18,
+		BaseDamage = 30,
 		SlashDamage = 18,
 		LungeDamage = 12,
-		Cooldown = 1.5,
+		AttackSpeed = 0.8,
 		Range = 8,
 	},
 	["IronSword"] = {
 		WeaponType = "Sword",
-		BaseDamage = 25,
-		Cooldown = 0.75,
+		BaseDamage = 20,
+		AttackSpeed = 1.2,
 		Range = 10,
 	},
 	["IronAxe"] = {
 		WeaponType = "Axe",
-		BaseDamage = 30,
-		Cooldown = 1,
+		BaseDamage = 25,
+		AttackSpeed = 1,
 		Range = 8,
 	},
 }
