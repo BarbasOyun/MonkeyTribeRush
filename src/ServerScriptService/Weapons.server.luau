@@ -1,17 +1,13 @@
---Made by Luckymaxer
---Updated for R15 avatar by StarWars
---Updated by RedRocStudio for Monkey Tribe Rush
-
 --Weapon Server -> Dmg + Sounds
 local Players = game:GetService("Players")
 local PlayersStats = require(script.Parent.PlayersStats)
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local WeaponConfig = require(ReplicatedStorage.Shared.Modules.WeaponConfig)
-local gizmo = require(ReplicatedStorage.Shared.gizmo)
+local Gears = require(ReplicatedStorage.Shared.Gears)
 
 --Remote Events
 local attackEvent = Events.ToolAttack
@@ -19,16 +15,18 @@ local equipEvent = Events.ToolEquip
 local attackHitEvent = Events.AttackHit
 
 -- Players
-local PlayersWeaponInfo = {}
+local expectingAttack = {}
 
-function OnEquipped(weapon, WeaponInfo)
+function OnEquipped(weapon, weaponInfo)
 	local character = weapon.Parent
 	local player = Players:GetPlayerFromCharacter(character)
 	print(weapon.Name .. " Equipped by player: " .. player.Name)
 
-	PlayersWeaponInfo[player] = WeaponInfo
+	local playerStat = PlayersStats[player]
+	playerStat.weaponInfo = weaponInfo
+	PlayersStats.CalculateAttackSpeed(player)
 
-	PlayersWeaponInfo[player].Sounds.Unsheath:Play()
+	playerStat.weaponInfo.sounds.unsheath:Play()
 	equipEvent:FireClient(player, true)
 end
 
@@ -39,74 +37,116 @@ function OnUnequipped(weapon)
 		return
 	end
 
-	PlayersWeaponInfo[player] = nil
+	PlayersStats[player].weaponInfo = nil
 	print(weapon.Name .. " Unequipped by player: " .. player.Name)
 	equipEvent:FireClient(player, false)
 end
 
 function FindHumanoidFromPart(part)
 	local character = part.Parent
+
 	if character then
 		return character:FindFirstChild("Humanoid")
 	end
+
 	return nil
 end
 
-local function DisplayHitBox(cFrame, Range)
-	local drawSphere = RunService.Heartbeat:Connect(function()
-		--print("Draw Sphere Gizmo")
-		gizmo.setColor("Bright red")
-		gizmo.setTransparency(0.5)
-		gizmo.drawSphere(cFrame, Range)
-		gizmo.reset()
-	end)
+local function IncrementCombo(playerStat)
+	playerStat.comboCount += 1
 
-	task.delay(0.5, function()
-		drawSphere:Disconnect()
+	if playerStat.comboCount > 1 then
+		playerStat.comboCount = 0
+	end
+
+	if playerStat.comboReset then
+		task.cancel(playerStat.comboReset)
+	end
+
+	playerStat.comboReset = task.delay(2, function()
+		playerStat.ComboCount = 0
 	end)
 end
 
 local function WeaponDamage(player)
-	local weaponInfo = PlayersWeaponInfo[player]
+	-- Check if The Call is Legit
+	if not expectingAttack[player] then
+		-- print("Unexpected AttackHit from player: " .. player.Name)
+		return
+	end
+
+	local weaponInfo = PlayersStats[player].weaponInfo
 	if not weaponInfo then
 		return
 	end
 
-	PlayersWeaponInfo[player].Sounds.Slash:Play()
-	player.Character.Humanoid.WalkSpeed = PlayersStats[player].Mobility
+	local playerStat = PlayersStats[player]
 
-	--Hit + Damage
-	DisplayHitBox(weaponInfo.AttackPoint.WorldCFrame, weaponInfo.Range)
-	local hits = workspace:GetPartBoundsInRadius(weaponInfo.AttackPoint.WorldPosition, weaponInfo.Range)
-	local humanoidsHit = {}
-	for _, hit in ipairs(hits) do
-		--print("Hit Part: " .. hit.Name)
-		local humanoid = FindHumanoidFromPart(hit)
-		if humanoid and humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
-			humanoidsHit[humanoid] = true
-			humanoid:TakeDamage(weaponInfo.Damage)
-			print(player.name .. " Dealt " .. weaponInfo.Damage .. " damage to " .. humanoid.Parent.Name)
+	weaponInfo.sounds.slash:Play()
+	player.Character.Humanoid.WalkSpeed = PlayersStats[player].mobility -- Reset WalkSpeed
+
+	local function Hit()
+		local attackPosition = weaponInfo.attackPoint.WorldCFrame
+		Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
+
+		expectingAttack[player] = nil
+
+		local hits = workspace:GetPartBoundsInRadius(attackPosition, weaponInfo.range)
+		local humanoidsHit = {}
+
+		for _, hit in ipairs(hits) do
+			--print("Hit Part: " .. hit.Name)
+			local humanoid = FindHumanoidFromPart(hit)
+			if humanoid and humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
+				humanoidsHit[humanoid] = true
+				humanoid:TakeDamage(weaponInfo.damage)
+				-- print(player.name .. " Dealt " .. weaponInfo.Damage .. " damage to " .. humanoid.Parent.Name)
+			end
 		end
 	end
+
+	IncrementCombo(playerStat)
+	Hit()
 end
 
 local function Attack(player)
 	-- Try to Attack using Player's Weapon
-	local weaponInfo = PlayersWeaponInfo[player]
-	if not weaponInfo then
+	local playerStat = PlayersStats[player]
+	local weaponInfo = playerStat.weaponInfo
+	if not playerStat or not weaponInfo then
 		return
 	end
 
 	-- IsAttackReady
 	local currentTime = tick()
-	if weaponInfo.lastAttack and currentTime - weaponInfo.lastAttack < weaponInfo.AttackSpeed then
-		return
-	end
-	weaponInfo.lastAttack = currentTime
+	local attackDelta = currentTime - playerStat.lastAttack
+	local missingTime = playerStat.animationTime - attackDelta
 
-	-- print("Attack By : " .. player.Name)
-	player.Character.Humanoid.WalkSpeed *= 0.5
-	attackEvent:FireClient(player)
+	local function StartAttack()
+		-- print("Go Attack")
+		playerStat.lastAttack = currentTime
+
+		-- print("Attack By : " .. player.Name)
+		expectingAttack[player] = true
+		player.Character.Humanoid.WalkSpeed *= 0.5
+		attackEvent:FireClient(player, playerStat.comboCount + 1, weaponInfo.finalAttackSpeed) -- Animation
+	end
+
+	if attackDelta < playerStat.animationTime then
+		-- Input Buffer
+		if missingTime <= 0.1 then
+			-- print("Attack Buffer: " .. player.Name)
+			playerStat.lastAttack = currentTime -- Lock Input Buffer
+			task.delay(missingTime, function()
+				StartAttack()
+			end)
+		else
+			-- print("Attack not Ready")
+			return
+		end
+	end
+
+	StartAttack()
 end
 
 -- EVENTS SETUP
@@ -117,17 +157,17 @@ local function CreateWeaponInfo(weapon)
 	local handle = weapon:WaitForChild("Handle")
 
 	local weaponInfo = {
-		Weapon = weapon,
-		Handle = handle,
-		AttackPoint = weapon:WaitForChild("AttackPoint"),
-		WeaponType = WeaponConfig[weapon.Name].WeaponType,
-		Damage = WeaponConfig[weapon.Name].BaseDamage,
-		Range = WeaponConfig[weapon.Name].Range,
-		AttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
-		lastAttack = 0,
-		Sounds = {
-			Unsheath = handle:WaitForChild("Unsheath"),
-			Slash = handle:WaitForChild("Slash"),
+		weapon = weapon,
+		handle = handle,
+		attackPoint = weapon:WaitForChild("AttackPoint"),
+		weaponType = WeaponConfig[weapon.Name].WeaponType,
+		damage = WeaponConfig[weapon.Name].BaseDamage,
+		range = WeaponConfig[weapon.Name].Range,
+		attackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
+		finalAttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
+		sounds = {
+			unsheath = handle:WaitForChild("Unsheath"),
+			slash = handle:WaitForChild("Slash"),
 		},
 	}
 
@@ -147,12 +187,12 @@ local function setupWeapon(weapon)
 	end)
 end
 
-local function SetupWeaponInstances(WeaponTag)
-	for _, weapon in pairs(CollectionService:GetTagged(WeaponTag)) do
+local function SetupWeaponInstances(weaponTag)
+	for _, weapon in pairs(CollectionService:GetTagged(weaponTag)) do
 		setupWeapon(weapon)
 	end
 
-	CollectionService:GetInstanceAddedSignal(WeaponTag):Connect(setupWeapon)
+	CollectionService:GetInstanceAddedSignal(weaponTag):Connect(setupWeapon)
 end
 
 SetupWeaponInstances("IronMace")

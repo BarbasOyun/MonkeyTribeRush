@@ -1,45 +1,55 @@
+-- Weapon Client -> Input +  Animation
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Events = ReplicatedStorage.Shared
 local Players = game:GetService("Players")
 
--- Weapon Client -> Input +  Animation
-local LocalPlayer = Players.LocalPlayer
-local Username = LocalPlayer.Name
-local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = character:WaitForChild("Humanoid")
-local animationTrack
-local animator = Humanoid:WaitForChild("Animator")
+-- Variables
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local animator = humanoid:WaitForChild("Animator")
+
+local animationTracks = {}
 
 -- Remote Events
 local attackEvent = Events.ToolAttack
 local equipEvent = Events.ToolEquip
 local attackHitEvent = Events.AttackHit
 
-local function loadAnimation()
+local function loadAnimation(animationId)
 	local anim = Instance.new("Animation")
-	--anim.AnimationId = "rbxassetid://522635514" -- R6 slash animation
-	anim.AnimationId = "rbxassetid://119339188916178" -- Custom R15
-	animationTrack = animator:LoadAnimation(anim)
+	anim.AnimationId = animationId
+	local animationTrack = animator:LoadAnimation(anim)
 	animationTrack.Priority = Enum.AnimationPriority.Action
 
 	animationTrack:GetMarkerReachedSignal("AttackHit"):Connect(function()
-		--print("Hit Event Triggered by player: " .. Username)
-		attackHitEvent:FireServer(LocalPlayer)
+		--print("Hit Event Triggered by player: " .. LocalPlayer.Name)
+		attackHitEvent:FireServer(localPlayer)
 	end)
+
+	return animationTrack
 end
 
-loadAnimation()
+local function loadAllAnimations()
+	local horizontalSlash = loadAnimation("rbxassetid://88145589618998") -- Combo 1
+	local verticalSlash = loadAnimation("rbxassetid://119339188916178") -- Combo 2
+
+	table.insert(animationTracks, horizontalSlash)
+	table.insert(animationTracks, verticalSlash)
+end
+
+loadAllAnimations()
 
 equipEvent.OnClientEvent:Connect(function(isEquipped)
-	--print("Weapon Equipped: " .. tostring(isEquipped) .. " for player: " .. Username)
+	--print("Weapon Equipped: " .. tostring(isEquipped) .. " for player: " .. LocalPlayer.Name)
 end)
 
 --Attack Triggered
-attackEvent.OnClientEvent:Connect(function()
-	--print("Animation for player: " .. Username)
-	animationTrack:Play()
-	animationTrack:AdjustSpeed(1.2)
+attackEvent.OnClientEvent:Connect(function(animationId, animationSpeed)
+	--print(LocalPlayer.Name .. " Combo: " .. AnimationId .. " Animation Speed: " .. AnimationSpeed)
+	animationTracks[animationId]:Play()
+	animationTracks[animationId]:AdjustSpeed(animationSpeed)
 end)
 
 --Try to Attack
@@ -50,6 +60,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then -- or input.KeyCode == Enum.KeyCode.E then
-		attackEvent:FireServer(LocalPlayer)
+		attackEvent:FireServer(localPlayer)
 	end
 end)
