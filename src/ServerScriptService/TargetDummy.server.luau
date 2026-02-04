@@ -2,6 +2,8 @@
 --Updated by RedRocStudio
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Gears = require(ReplicatedStorage.Shared.Gears)
 
 local function setupDummy(dummy)
 	local humanoid = dummy:FindFirstChildOfClass("Humanoid")
@@ -13,16 +15,19 @@ local function setupDummy(dummy)
 	end
 
 	-- Respawn
-	humanoid.Died:Connect(function()
+	local function OnDeath()
 		print(dummy.Name .. " Died")
+		Gears.SpawnXP(dummy:GetPivot().Position)
 		task.wait(1)
 		clone.Parent = workspace
 		dummy:Destroy()
-	end)
+	end
 
-	--[[ humanoid.HealthChanged:Connect(function(health)
-		print(dummy.Name .. " health: " .. health)
-	end) ]]
+	humanoid.Died:Connect(OnDeath)
+
+	-- humanoid.HealthChanged:Connect(function(health)
+	-- 	print(dummy.Name .. " health: " .. health)
+	-- end)
 
 	local anchor = script:GetAttribute("Anchor")
 

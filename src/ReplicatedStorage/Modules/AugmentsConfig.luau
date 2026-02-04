@@ -1,0 +1,83 @@
+return {
+	rarity = { "Common", "Uncommon", "Rare", "Epic", "Legendary" },
+	weights = { 200, 100, 50, 20, 5 }, -- 375 Total
+	augmentType = {
+		"AttackDamage",
+		"AttackSpeed",
+		"AOE",
+		"Life",
+		"LifeRegen",
+		"DR",
+		"Luck",
+		"XP",
+		"Mobility",
+		"Crit Chance",
+		"Crit Multiplier",
+	},
+	["AttackDamage"] = {
+		Common = 10,
+		Uncommon = 15,
+		Rare = 20,
+		Epic = 25,
+		Legendary = 35,
+	},
+	["AttackSpeed"] = {
+		Common = 3,
+		Uncommon = 6,
+		Rare = 9,
+		Epic = 12,
+		Legendary = 15,
+	},
+	["AOE"] = {
+		Uncommon = 10,
+		Rare = 15,
+		Epic = 20,
+		Legendary = 25,
+	},
+	["Life"] = {
+		Uncommon = 30,
+		Rare = 45,
+		Epic = 60,
+		Legendary = 75,
+	},
+	["LifeRegen"] = {
+		Common = 1,
+		Uncommon = 3,
+		Rare = 5,
+		Epic = 7,
+		Legendary = 9,
+	},
+	["DR"] = {
+		Uncommon = 5,
+		Rare = 7,
+		Epic = 9,
+		Legendary = 11,
+	},
+	["Luck"] = {
+		Rare = 5,
+		Epic = 10,
+	},
+	["XP"] = {
+		Rare = 10,
+		Epic = 15,
+		Legendary = 20,
+	},
+	["Mobility"] = {
+		Rare = 2,
+		Epic = 4,
+		Legendary = 6,
+	},
+	["Crit Chance"] = {
+		Common = 3,
+		Uncommon = 6,
+		Rare = 9,
+		Epic = 12,
+		Legendary = 15,
+	},
+	["Crit Multiplier"] = {
+		Uncommon = 10,
+		Rare = 15,
+		Epic = 20,
+		Legendary = 25,
+	},
+}

@@ -59,7 +59,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then -- or input.KeyCode == Enum.KeyCode.E then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		attackEvent:FireServer(localPlayer)
 	end
 end)

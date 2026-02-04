@@ -17,31 +17,6 @@ local attackHitEvent = Events.AttackHit
 -- Players
 local expectingAttack = {}
 
-function OnEquipped(weapon, weaponInfo)
-	local character = weapon.Parent
-	local player = Players:GetPlayerFromCharacter(character)
-	print(weapon.Name .. " Equipped by player: " .. player.Name)
-
-	local playerStat = PlayersStats[player]
-	playerStat.weaponInfo = weaponInfo
-	PlayersStats.CalculateAttackSpeed(player)
-
-	playerStat.weaponInfo.sounds.unsheath:Play()
-	equipEvent:FireClient(player, true)
-end
-
-function OnUnequipped(weapon)
-	local player = weapon.Parent.Parent -- Backpack
-
-	if not player then
-		return
-	end
-
-	PlayersStats[player].weaponInfo = nil
-	print(weapon.Name .. " Unequipped by player: " .. player.Name)
-	equipEvent:FireClient(player, false)
-end
-
 function FindHumanoidFromPart(part)
 	local character = part.Parent
 
@@ -91,7 +66,7 @@ local function WeaponDamage(player)
 
 		expectingAttack[player] = nil
 
-		local hits = workspace:GetPartBoundsInRadius(attackPosition, weaponInfo.range)
+		local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range)
 		local humanoidsHit = {}
 
 		for _, hit in ipairs(hits) do
@@ -124,7 +99,7 @@ local function Attack(player)
 
 	local function StartAttack()
 		-- print("Go Attack")
-		playerStat.lastAttack = currentTime
+		playerStat.lastAttack = tick()
 
 		-- print("Attack By : " .. player.Name)
 		expectingAttack[player] = true
@@ -140,10 +115,9 @@ local function Attack(player)
 			task.delay(missingTime, function()
 				StartAttack()
 			end)
-		else
-			-- print("Attack not Ready")
-			return
 		end
+
+		return
 	end
 
 	StartAttack()
@@ -152,6 +126,31 @@ end
 -- EVENTS SETUP
 attackEvent.OnServerEvent:Connect(Attack)
 attackHitEvent.OnServerEvent:Connect(WeaponDamage)
+
+function OnEquipped(weapon, weaponInfo)
+	local character = weapon.Parent
+	local player = Players:GetPlayerFromCharacter(character)
+	print(weapon.Name .. " Equipped by player: " .. player.Name)
+
+	local playerStat = PlayersStats[player]
+	playerStat.weaponInfo = weaponInfo
+	PlayersStats.CalculateAttackSpeed(player)
+
+	playerStat.weaponInfo.sounds.unsheath:Play()
+	equipEvent:FireClient(player, true)
+end
+
+function OnUnequipped(weapon)
+	local player = weapon.Parent.Parent -- Backpack
+
+	if not player then
+		return
+	end
+
+	PlayersStats[player].weaponInfo = nil
+	print(weapon.Name .. " Unequipped by player: " .. player.Name)
+	equipEvent:FireClient(player, false)
+end
 
 local function CreateWeaponInfo(weapon)
 	local handle = weapon:WaitForChild("Handle")
