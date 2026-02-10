@@ -1,8 +1,10 @@
 -- Services
+local DataStoreService = game:GetService("DataStoreService"):GetOrderedDataStore("Wins")
 local Players = game:GetService("Players")
 local PlayersStats = require(script.Parent.PlayersStats)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Gears = require(ReplicatedStorage.Shared.Gears)
 local RunService = game:GetService("RunService")
 
 -- local Gears = require(ReplicatedStorage.Shared.Gears)
@@ -24,7 +26,17 @@ Players.PlayerAdded:Connect(function(player)
 	leaderstats.Parent = player
 	leaderstats.Name = "leaderstats"
 
-	PlayersStats.CreatePlayer(player, leaderstats)
+	local uiInfos = Instance.new("Folder")
+	uiInfos.Parent = player
+	uiInfos.Name = "UIInfos"
+
+	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
+
+	-- TODO : At the end of the Game
+	local kills = leaderstats:WaitForChild("Kills")
+	-- kills.Changed:Connect(function()
+	-- 	DataStoreService:SetAsync(player.UserId, kills.Value)
+	-- end)
 end)
 
 local function GetXp(xpOrb)
@@ -32,48 +44,34 @@ local function GetXp(xpOrb)
 		-- print("Add Small XP Orb")
 		PlayersStats.AddXp(10)
 	end
-	xpOrb.Parent = nil
+	xpOrb:Destroy()
 end
 
 local function GrabXp(charater, xpOrb)
 	-- print("xpOrb Found")
-	xpOrb.CanCollide = false
-	xpOrb.Parent = game.Workspace
-
-	-- On Collision
-	local connection
-
-	local function TouchEvent(otherPart)
-		if Players:GetPlayerFromCharacter(otherPart:FindFirstAncestorWhichIsA("Model")) then
-			-- print("XP Orb Touched Player")
-			if connection then
-				connection:Disconnect()
-			end
-			GetXp(xpOrb)
-		end
+	if not xpOrb.Parent then
+		return
 	end
 
-	connection = xpOrb.Touched:Connect(TouchEvent)
+	if xpOrb.Parent ~= workspace.XP_Orbs then
+		return
+	end
 
-	-- Lerp
+	xpOrb.Parent = game.Workspace
+	xpOrb.CanCollide = false
+
+	-- Lerp XP
 	local startPos = xpOrb.CFrame
 
 	local steps = 60
-	local overSteps = steps * 0.9
-	-- local duration = 1 -- seconds
-	-- local waitTime = duration / steps
 
 	for i = 1, steps do
-		local alpha = i / overSteps -- This moves from 0 to 1
+		local alpha = i / steps -- This moves from 0 to 1
 		xpOrb.CFrame = startPos:Lerp(charater:GetPivot(), alpha)
-		-- task.wait(waitTime)
 		RunService.Heartbeat:Wait()
 	end
 
-	-- Finish XP Movement
-	-- RunService.Heartbeat:Connect(function()
-	-- 	xpOrb.CFrame = startPos:Lerp(charater:GetPivot(), alpha)
-	-- end)
+	GetXp(xpOrb)
 end
 
 local function XpGrabRange()
@@ -88,7 +86,8 @@ local function XpGrabRange()
 		-- print(player.Name)
 		local character = player.Character or player.CharacterAdded:Wait()
 		local position = character.HumanoidRootPart.CFrame.Position
-		local range = PlayersStats[player].xpGrabRange
+		local range = PlayersStats[player].pickupRange
+			* Gears.IncreaseToMultiplier(PlayersStats[player].increasedPickupRange)
 
 		-- Gears.DisplayHitBox(position, range, 0.1)
 		local xpOrbs = workspace:GetPartBoundsInRadius(position, range, params)

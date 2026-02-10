@@ -11,7 +11,7 @@ return {
 		WeaponType = "Sword",
 		BaseDamage = 20,
 		AttackSpeed = 1,
-		Range = 10,
+		Range = 6,
 	},
 	["IronAxe"] = {
 		WeaponType = "Axe",

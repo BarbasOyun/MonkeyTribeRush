@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Events = ReplicatedStorage.Shared
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 -- Variables
 local localPlayer = Players.LocalPlayer
@@ -11,6 +12,8 @@ local humanoid = character:WaitForChild("Humanoid")
 local animator = humanoid:WaitForChild("Animator")
 
 local animationTracks = {}
+
+local isLClickDown = false
 
 -- Remote Events
 local attackEvent = Events.ToolAttack
@@ -60,6 +63,23 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		attackEvent:FireServer(localPlayer)
+		isLClickDown = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		isLClickDown = false
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	if isLClickDown then
 		attackEvent:FireServer(localPlayer)
 	end
 end)

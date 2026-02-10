@@ -1,24 +1,115 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Events = ReplicatedStorage.Shared
+local RunService = game:GetService("RunService")
+local AugmentsConfig = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
 local player = game.Players.LocalPlayer
-local leaderstats = player:WaitForChild("leaderstats")
-local level = leaderstats:WaitForChild("Level")
+
+-- UI
+-- local leaderstats = player:WaitForChild("leaderstats")
+
+local uiInfos = player:WaitForChild("UIInfos")
+local level = uiInfos:WaitForChild("Level")
+local xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
+local xpBarMax = uiInfos:WaitForChild("XpBarMax")
 
 local playerGui = player:WaitForChild("PlayerGui")
 
-local screenGui = playerGui:WaitForChild("ScreenGui")
-local levelText = screenGui:WaitForChild("LevelText")
-local levelUpButton = screenGui:WaitForChild("Lvl+Button")
+-- Main
+local mainGui = playerGui:WaitForChild("MainGui")
+local levelText = mainGui:WaitForChild("LevelText")
+local levelUpButton = mainGui:WaitForChild("Lvl+Button")
+local xpBarBg = mainGui:WaitForChild("XpBarBG")
+local xpBar = xpBarBg:WaitForChild("XpBar")
+local xpBarText = xpBarBg:WaitForChild("XpBarText")
+local xpBarUpdater = nil
 
+-- Augments
 local cardGui = playerGui:WaitForChild("CardGui")
-local card_01 = cardGui:WaitForChild("Card_01")
-local card_02 = cardGui:WaitForChild("Card_02")
-local card_03 = cardGui:WaitForChild("Card_03")
+local rerollButton = cardGui:WaitForChild("RerollButton")
+local cards = { cardGui:WaitForChild("Card_01"), cardGui:WaitForChild("Card_02"), cardGui:WaitForChild("Card_03") }
+local cardTexts =
+	{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
 
 local levelUpEvent = Events.LevelUp
+local rerollEvent = Events.Reroll
 
+local function PrintAugmentChoice(augmentsChoice)
+	local function AugmentToString(augment)
+		print("Type = " .. augment[1] .. " Rarity = " .. augment[2] .. " Value = " .. augment[3])
+	end
+
+	print("Augment Choices :")
+	AugmentToString(augmentsChoice[1])
+	AugmentToString(augmentsChoice[2])
+	AugmentToString(augmentsChoice[3])
+end
+
+local function SetupAugments(augmentsChoice)
+	-- PrintAugmentChoice(augmentsChoice)
+	for i, card in pairs(cards) do
+		card.BackgroundColor3 = AugmentsConfig.colors[augmentsChoice[i][2]] -- Rarity Color
+		cardTexts[i].Text = augmentsChoice[i][2] -- Rarity
+			.. " \n "
+			.. augmentsChoice[i][3] -- Value
+			.. " \n "
+			.. AugmentsConfig.displayName[augmentsChoice[i][1]] -- Type
+	end
+end
+
+local function OnLevelUp(level, waitingLevels) -- augmentsChoice
+	levelText.Text = "Level : " .. level
+	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
+	levelUpButton.Visible = true
+
+	-- SetupAugments(augmentsChoice)
+end
+
+local function DisplayAugments()
+	if not levelUpButton.Visible then
+		return
+	end
+
+	cardGui.Enabled = true
+end
+
+local function Reroll()
+	rerollEvent:FireServer()
+end
+
+-- Also used on lvlup
+local function OnReroll(augmentsChoice)
+	SetupAugments(augmentsChoice)
+end
+
+local function ChooseCard(choiceNbr)
+	cardGui.Enabled = false
+	levelUpButton.Visible = false
+	levelUpEvent:FireServer(choiceNbr)
+end
+
+local function UpdateXpBar()
+	if xpBarUpdater then
+		xpBarUpdater:Disconnect()
+	end
+
+	-- print("Update XP Bar : " .. xpBarCurrent.Value .. " / " .. xpBarMax.Value)
+
+	xpBarUpdater = RunService.Heartbeat:Connect(function(dT)
+		-- local targetSize = UDim2.new(xpBarCurrent.Value / xpBarMax.Value, 0, 1, 0)
+		local targetSize = UDim2.fromScale(xpBarCurrent.Value / xpBarMax.Value, 1)
+		xpBar.Size = xpBar.Size:Lerp(targetSize, 5 * dT)
+		xpBarText.Text = xpBarCurrent.Value .. " / " .. xpBarMax.Value
+
+		if xpBar.Size.X.Scale >= 0.99 then
+			xpBar.Size = targetSize
+			xpBarUpdater:Disconnect()
+		end
+	end)
+end
+
+-- Keybinds
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	--print("Input detected: " .. tostring(input.UserInputType) .. "Game processed: " .. tostring(gameProcessed))
 	if gameProcessed then
@@ -28,44 +119,35 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	local keyName = UserInputService:GetStringForKeyCode(input.KeyCode)
 
 	if keyName:lower() == "a" then
-		cardGui.Enabled = true
+		DisplayAugments()
 	end
 end)
 
-level.Changed:Connect(function()
-	levelText.Text = "Level : " .. level.Value
-end)
+-- level.Changed:Connect(function()
+-- 	levelText.Text = "Level : " .. level.Value
+-- end)
 
-local function PrintAugmentChoice(augment)
-	print("1] : Type = " .. augment[1] .. " Rarity = " .. augment[2] .. " Value : " .. augment[2])
-end
+xpBarCurrent.Changed:Connect(UpdateXpBar)
+xpBarMax.Changed:Connect(UpdateXpBar)
 
-levelUpEvent.OnClientEvent:Connect(function(augmentsChoice)
-	levelUpButton.Visible = true
-	print("Augment Choices :")
-	PrintAugmentChoice(augmentsChoice[1])
-	PrintAugmentChoice(augmentsChoice[2])
-	PrintAugmentChoice(augmentsChoice[3])
-end)
+levelUpEvent.OnClientEvent:Connect(OnLevelUp)
+levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
-levelUpButton.MouseButton1Click:Connect(function()
-	cardGui.Enabled = true
-end)
+rerollButton.MouseButton1Click:Connect(Reroll)
+rerollEvent.OnClientEvent:Connect(OnReroll)
 
-local function ChooseCard(choiceNbr)
-	cardGui.Enabled = false
-	levelUpButton.Visible = false
-	levelUpEvent:FireServer(choiceNbr)
-end
-
-card_01.MouseButton1Click:Connect(function()
+cards[1].MouseButton1Click:Connect(function()
 	ChooseCard(1)
 end)
 
-card_02.MouseButton1Click:Connect(function()
+cards[2].MouseButton1Click:Connect(function()
 	ChooseCard(2)
 end)
 
-card_03.MouseButton1Click:Connect(function()
+cards[3].MouseButton1Click:Connect(function()
 	ChooseCard(3)
 end)
+
+-- Update XP Bar
+xpBarCurrent.Value = 1
+xpBarCurrent.Value = 0

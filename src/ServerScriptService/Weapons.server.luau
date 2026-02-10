@@ -66,6 +66,19 @@ local function WeaponDamage(player)
 
 		expectingAttack[player] = nil
 
+		local finalDamage = weaponInfo.finalAttackDamage
+		local critRoll = math.random(0, 100)
+
+		if critRoll <= playerStat.critChance then
+			-- print(
+			-- 	"Crit : "
+			-- 		.. finalDamage
+			-- 		.. " -> "
+			-- 		.. finalDamage * Gears.IncreaseToMultiplier(playerStat.critMultiplier)
+			-- )
+			finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
+		end
+
 		local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range)
 		local humanoidsHit = {}
 
@@ -74,8 +87,11 @@ local function WeaponDamage(player)
 			local humanoid = FindHumanoidFromPart(hit)
 			if humanoid and humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
 				humanoidsHit[humanoid] = true
-				humanoid:TakeDamage(weaponInfo.damage)
+				humanoid:TakeDamage(finalDamage)
 				-- print(player.name .. " Dealt " .. weaponInfo.Damage .. " damage to " .. humanoid.Parent.Name)
+				if humanoid.Health <= 0 then
+					playerStat.kills.Value += 1
+				end
 			end
 		end
 	end
@@ -127,20 +143,20 @@ end
 attackEvent.OnServerEvent:Connect(Attack)
 attackHitEvent.OnServerEvent:Connect(WeaponDamage)
 
-function OnEquipped(weapon, weaponInfo)
+local function OnEquipped(weapon, weaponInfo)
 	local character = weapon.Parent
 	local player = Players:GetPlayerFromCharacter(character)
 	print(weapon.Name .. " Equipped by player: " .. player.Name)
 
 	local playerStat = PlayersStats[player]
 	playerStat.weaponInfo = weaponInfo
-	PlayersStats.CalculateAttackSpeed(player)
+	PlayersStats.ApplyStats(player)
 
 	playerStat.weaponInfo.sounds.unsheath:Play()
 	equipEvent:FireClient(player, true)
 end
 
-function OnUnequipped(weapon)
+local function OnUnequipped(weapon)
 	local player = weapon.Parent.Parent -- Backpack
 
 	if not player then
@@ -161,7 +177,9 @@ local function CreateWeaponInfo(weapon)
 		attackPoint = weapon:WaitForChild("AttackPoint"),
 		weaponType = WeaponConfig[weapon.Name].WeaponType,
 		damage = WeaponConfig[weapon.Name].BaseDamage,
+		finalAttackDamage = WeaponConfig[weapon.Name].BaseDamage,
 		range = WeaponConfig[weapon.Name].Range,
+		finalAoe = WeaponConfig[weapon.Name].Range,
 		attackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		finalAttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		sounds = {

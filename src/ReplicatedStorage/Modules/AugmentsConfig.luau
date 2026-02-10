@@ -1,80 +1,110 @@
 return {
 	rarity = { "Common", "Uncommon", "Rare", "Epic", "Legendary" },
-	weights = { 200, 100, 50, 20, 5 }, -- 375 Total
-	augmentType = {
-		"AttackDamage",
-		"AttackSpeed",
-		"AOE",
-		"Life",
-		"LifeRegen",
-		"DR",
-		"Luck",
-		"XP",
-		"Mobility",
-		"Crit Chance",
-		"Crit Multiplier",
+	colors = {
+		Common = Color3.fromRGB(155, 155, 155),
+		Uncommon = Color3.fromRGB(0, 255, 0),
+		Rare = Color3.fromRGB(0, 0, 255),
+		Epic = Color3.fromRGB(116, 2, 116),
+		Legendary = Color3.fromRGB(211, 4, 4),
 	},
-	["AttackDamage"] = {
+	-- weights = { 200, 100, 50, 20, 5 }, -- 375 Total
+	baseLuckValue = 200,
+	luckPoints = { 0, 100, 150, 180, 195 },
+	augmentType = {
+		"attackDamage",
+		"attackSpeed",
+		"aoe",
+		"maxHealth",
+		"lifeRegen",
+		"damageReduction",
+		"mobility",
+		"luck",
+		"increasedXp",
+		"increasedPickupRange",
+		"critChance",
+		"critMultiplier",
+	},
+	displayName = {
+		["attackDamage"] = "% Attack Damage",
+		["attackSpeed"] = "% Attack Speed",
+		["aoe"] = "% AOE",
+		["maxHealth"] = "Life",
+		["lifeRegen"] = "Life Regen",
+		["damageReduction"] = "% Damage Reduction",
+		["mobility"] = "Mobility",
+		["luck"] = "Luck",
+		["increasedXp"] = "% XP",
+		["increasedPickupRange"] = "% Pickup Range",
+		["critChance"] = "% Crit Chance",
+		["critMultiplier"] = "% Crit Multiplier",
+	},
+	["attackDamage"] = {
 		Common = 10,
 		Uncommon = 15,
 		Rare = 20,
 		Epic = 25,
 		Legendary = 35,
 	},
-	["AttackSpeed"] = {
+	["attackSpeed"] = {
 		Common = 3,
 		Uncommon = 6,
 		Rare = 9,
 		Epic = 12,
 		Legendary = 15,
 	},
-	["AOE"] = {
+	["aoe"] = {
 		Uncommon = 10,
 		Rare = 15,
 		Epic = 20,
 		Legendary = 25,
 	},
-	["Life"] = {
+	["maxHealth"] = {
 		Uncommon = 30,
 		Rare = 45,
 		Epic = 60,
 		Legendary = 75,
 	},
-	["LifeRegen"] = {
+	["lifeRegen"] = {
 		Common = 1,
 		Uncommon = 3,
 		Rare = 5,
 		Epic = 7,
 		Legendary = 9,
 	},
-	["DR"] = {
+	["damageReduction"] = {
 		Uncommon = 5,
 		Rare = 7,
 		Epic = 9,
 		Legendary = 11,
 	},
-	["Luck"] = {
+	["mobility"] = {
+		Rare = 3,
+		Epic = 5,
+		Legendary = 7,
+	},
+	["luck"] = {
 		Rare = 5,
 		Epic = 10,
 	},
-	["XP"] = {
+	["increasedXp"] = {
 		Rare = 10,
 		Epic = 15,
 		Legendary = 20,
 	},
-	["Mobility"] = {
-		Rare = 2,
-		Epic = 4,
-		Legendary = 6,
+	["increasedPickupRange"] = {
+		Uncommon = 10,
+		Rare = 15,
+		Epic = 20,
+		Legendary = 25,
 	},
-	["Crit Chance"] = {
+	["critChance"] = {
 		Common = 3,
 		Uncommon = 6,
 		Rare = 9,
 		Epic = 12,
 		Legendary = 15,
 	},
-	["Crit Multiplier"] = {
+	["critMultiplier"] = {
 		Uncommon = 10,
 		Rare = 15,
 		Epic = 20,

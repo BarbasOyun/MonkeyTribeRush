@@ -1,10 +1,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Events = require(ReplicatedStorage.Shared.Events)
 local Gears = require(ReplicatedStorage.Shared.Gears)
 local Augments = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
 local levelUpEvent = Events.LevelUp
+local rerollEvent = Events.Reroll
 
 print("Player Stats Test")
 
@@ -13,76 +15,166 @@ local currentAugments = {}
 
 local defaultStats = {
 	level = nil,
-	waitingLevel = 0,
-	maxHealth = 100,
-	mobility = 15,
+	waitingLevel = nil,
+	attackDamage = 0,
 	attackSpeed = 0,
 	animationTime = 1,
 	lastAttack = 0,
 	comboCount = 0,
 	comboReset = nil,
-	attackDamage = 0,
 	aoe = 0,
-	lifeRegen = 1,
+	maxHealth = 100,
+	lifeRegen = 0,
+	lifeRegenUpdate = nil,
 	damageReduction = 0,
+	mobility = 15,
 	luck = 0,
 	increasedXp = 0,
-	levelXp = 50,
-	currentXp = 0,
-	xpGrabRange = 10,
-	increaseXPGrabRange = 0,
+	levelUpXp = nil,
+	currentXp = nil,
+	pickupRange = 10,
+	increasedPickupRange = 0,
+	critChance = 5,
+	critMultiplier = 50,
 	weaponInfo = nil,
+	bananas = nil,
 }
 
-function playersStats.CreatePlayer(player, leaderstats)
+function playersStats.CreatePlayer(player, leaderstats, uiInfos)
+	playersStats[player] = defaultStats
+
+	local xpBarCurrent = Instance.new("IntValue")
+	xpBarCurrent.Parent = uiInfos
+	xpBarCurrent.Name = "XpBarCurrent"
+	playersStats[player].currentXp = xpBarCurrent
+
+	local xpBarMax = Instance.new("IntValue")
+	xpBarMax.Parent = uiInfos
+	xpBarMax.Name = "XpBarMax"
+	xpBarMax.Value = 50
+	playersStats[player].levelUpXp = xpBarMax
+
+	local bananas = Instance.new("IntValue")
+	bananas.Parent = uiInfos
+	bananas.Name = "Bananas"
+	playersStats[player].bananas = bananas
+
 	local level = Instance.new("IntValue")
-	level.Parent = leaderstats
+	level.Parent = uiInfos
 	level.Name = "Level"
 	level.Value = 1
-
-	playersStats[player] = defaultStats
 	playersStats[player].level = level
+
+	local waitingLevel = Instance.new("IntValue")
+	waitingLevel.Parent = uiInfos
+	waitingLevel.Name = "WaitingLevel"
+	waitingLevel.Value = 0
+	playersStats[player].waitingLevel = waitingLevel
+
+	local kills = Instance.new("IntValue")
+	kills.Parent = leaderstats
+	kills.Name = "Kills"
+	kills.Value = 0
+	playersStats[player].kills = kills
+
+	local destruction = Instance.new("IntValue")
+	destruction.Parent = leaderstats
+	destruction.Name = "Destruction"
+	destruction.Value = 0
+
 	playersStats.ApplyStats(player)
 end
 
-function playersStats.CalculateAttackSpeed(player)
-	local PlayerStat = playersStats[player]
-
-	if PlayerStat.WeaponInfo then
-		PlayerStat.WeaponInfo.FinalAttackSpeed = PlayerStat.WeaponInfo.AttackSpeed * (1 + PlayerStat.AttackSpeed / 100)
-		PlayerStat.AnimationTime = 1 / PlayerStat.WeaponInfo.FinalAttackSpeed
+function playersStats.CalculateAttackSpeed(playerStat)
+	if not playerStat.weaponInfo then
+		return
 	end
 
-	-- print(
-	-- 	"Player: "
-	-- 		.. player.Name
-	-- 		.. " Final Attack Speed: "
-	-- 		.. (PlayerStat.WeaponInfo and PlayerStat.WeaponInfo.FinalAttackSpeed or 0)
-	-- )
+	playerStat.weaponInfo.finalAttackSpeed = playerStat.weaponInfo.attackSpeed
+		* Gears.IncreaseToMultiplier(playerStat.attackSpeed)
+	playerStat.animationTime = 1 / playerStat.weaponInfo.finalAttackSpeed
+
+	-- print(" Final Attack Speed: " .. (playerStat.WeaponInfo and playerStat.WeaponInfo.finalAttackSpeed or 0))
+end
+
+function playersStats.CalculateAttackDamage(playerStat)
+	if not playerStat.weaponInfo then
+		return
+	end
+
+	playerStat.weaponInfo.finalAttackDamage = playerStat.weaponInfo.damage
+		* Gears.IncreaseToMultiplier(playerStat.attackDamage)
+
+	-- print(" Final Attack Damage: " .. (playerStat.WeaponInfo and playerStat.WeaponInfo.finalAttackDamage or 0))
+end
+
+function playersStats.CalculateAoe(playerStat)
+	if not playerStat.weaponInfo then
+		return
+	end
+
+	playerStat.weaponInfo.finalAoe = playerStat.weaponInfo.range * Gears.IncreaseToMultiplier(playerStat.aoe)
 end
 
 function playersStats.ApplyStats(player)
+	-- Calculate each stat on this stat changed
 	local playerStat = playersStats[player]
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
 
 	humanoid.MaxHealth = playerStat.maxHealth
 	humanoid.WalkSpeed = playerStat.mobility
+	humanoid.JumpPower = 40 + playerStat.mobility / 2
+	-- playerStat.currentXp.Value = playerStat.currentXp.Value -- Update XP Bar
 
-	playersStats.CalculateAttackSpeed(player)
+	-- Life Regen
+	if playerStat.lifeRegenUpdate then
+		playerStat.lifeRegenUpdate:Disconnect()
+		playerStat.lifeRegenUpdate = nil
+	end
+
+	if playerStat.lifeRegen > 0 then
+		playerStat.lifeRegenUpdate = RunService.Heartbeat:Connect(function()
+			humanoid.Health += playerStat.lifeRegen / 60 -- 60 FPS
+		end)
+	end
+
+	playersStats.CalculateAttackSpeed(playerStat)
+	playersStats.CalculateAttackDamage(playerStat)
+	playersStats.CalculateAoe(playerStat)
 end
 
 function playersStats.RollAugments(luck)
+	local function GetWeights()
+		-- local weights = Augments.weights
+		local baseLuckValue = Augments.baseLuckValue
+		local luckPoints = Augments.luckPoints
+		local luckDistance = {
+			math.abs(luckPoints[1] - luck), -- Deal with Negative Luck
+			math.abs(luckPoints[2] - luck),
+			math.abs(luckPoints[3] - luck),
+			math.abs(luckPoints[4] - luck),
+			math.abs(luckPoints[5] - luck),
+		}
+		local weights = {
+			baseLuckValue - luckDistance[1],
+			baseLuckValue - luckDistance[2],
+			baseLuckValue - luckDistance[3],
+			baseLuckValue - luckDistance[4],
+			baseLuckValue - luckDistance[5],
+		}
+
+		return weights
+	end
+
 	-- print("Rolling Augments with : " .. luck .. " Luck")
-	local weights = Augments.weights
-	local luckPoints = { 0, 20, 40, 60, 85 } -- Distance = difference with luck -> +Distance = Less Chance
+
+	local weights = GetWeights()
 
 	local function GetAugment()
-		local totalWeight = Gears.sumTable(weights)
-		local roll = math.random(0, totalWeight)
-
-		-- Find Rarity
 		local function FindRarity()
+			local totalWeight = Gears.sumTable(weights)
+			local roll = math.random(0, totalWeight)
 			local count = 1
 			local currentCheck = weights[1]
 			while roll > currentCheck do
@@ -101,7 +193,7 @@ function playersStats.RollAugments(luck)
 			local augmentValue = Augments[augmentType][rarity] -- augmentType
 
 			if not augmentValue then
-				print(augmentType .. " Doesn't have : " .. rarity .. " Version")
+				-- print(augmentType .. " Doesn't have : " .. rarity .. " Version")
 				return FindAugment()
 			end
 
@@ -116,48 +208,74 @@ function playersStats.RollAugments(luck)
 	return augmentsChoice
 end
 
+function playersStats.SendAugment(player, playerStat)
+	local augments = playersStats.RollAugments(playerStat.luck)
+	currentAugments[player] = augments
+	rerollEvent:FireClient(player, augments)
+end
+
 function playersStats.AddXpToLvl(player, xp)
 	-- print(player.Name .. " Gained : " .. xp .. " XP")
 	local playerStat = playersStats[player]
-	playerStat.currentXp += xp * (1 + playerStat.increasedXp / 100)
+	playerStat.currentXp.Value += xp * Gears.IncreaseToMultiplier(playerStat.increasedXp)
 
-	if playerStat.currentXp >= playerStat.levelXp then
+	if playerStat.currentXp.Value >= playerStat.levelUpXp.Value then
 		playersStats.LevelUp(player)
 	end
 end
 
 function playersStats.LevelUp(player)
 	local playerStat = playersStats[player]
-	local overXp = playerStat.currentXp - playerStat.levelXp
-	playerStat.waitingLevel += 1
-	playerStat.currentXp = 0
-	playerStat.levelXp *= 1.1
+
+	-- Manage XP
+	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
+	playerStat.waitingLevel.Value += 1
+	playerStat.currentXp.Value = 0
+	playerStat.levelUpXp.Value *= 1.1
 	print(player.Name .. " Leveled Up")
 
-	local augments = playersStats.RollAugments(playerStat.luck)
-	currentAugments[player] = augments
-	levelUpEvent:FireClient(player, augments)
+	playersStats.SendAugment(player, playerStat)
+	levelUpEvent:FireClient(player, playerStat.level.Value, playerStat.waitingLevel.Value)
 
 	playersStats.AddXpToLvl(player, overXp)
 end
-
-levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
-	if not currentAugments[player] then
-		print("No Augments ready for : " .. player.Name)
-		return
-	end
-
-	print(player.Name .. " Choosed : " .. choiceNbr)
-	local playerStat = playersStats[player]
-	playerStat.level.Value += 1
-	--Add Augment Stats
-	print(currentAugments[player][choiceNbr])
-end)
 
 function playersStats.AddXp(xpValue)
 	for _, player in pairs(Players:GetPlayers()) do
 		playersStats.AddXpToLvl(player, xpValue)
 	end
 end
+
+-- Augment Choice Made
+levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
+	if not currentAugments[player] then
+		print("No Augments ready for : " .. player.Name)
+		return
+	end
+
+	-- print(player.Name .. " Choosed : " .. choiceNbr)
+	local playerStat = playersStats[player]
+	playerStat.level.Value += 1
+	playerStat.waitingLevel.Value -= 1
+	--Add Augment Stats
+	local augment = currentAugments[player][choiceNbr]
+	playerStat[augment[1]] += augment[3] -- augmentType and augmentValue
+	currentAugments[player] = nil
+	playersStats.ApplyStats(player)
+
+	if playerStat.waitingLevel.Value > 0 then
+		playersStats.SendAugment(player, playerStat)
+		levelUpEvent:FireClient(player, playerStat.level.Value, playerStat.waitingLevel.Value)
+	end
+end)
+
+rerollEvent.OnServerEvent:Connect(function(player)
+	if not currentAugments[player] then
+		print("No Augments ready for : " .. player.Name)
+		return
+	end
+
+	playersStats.SendAugment(player, playersStats[player])
+end)
 
 return playersStats

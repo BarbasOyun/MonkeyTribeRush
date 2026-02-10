@@ -14,11 +14,11 @@ local function setupDummy(dummy)
 		return
 	end
 
-	-- Respawn
 	local function OnDeath()
 		print(dummy.Name .. " Died")
 		Gears.SpawnXP(dummy:GetPivot().Position)
 		task.wait(1)
+		-- Respawn
 		clone.Parent = workspace
 		dummy:Destroy()
 	end

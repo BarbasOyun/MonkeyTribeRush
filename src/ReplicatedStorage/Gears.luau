@@ -20,6 +20,7 @@ function gears.DisplayHitBox(cFrame, range, transparency)
 end
 
 function gears.SpawnXP(spawnPosition)
+	-- print("Spawn XP Orb")
 	local newOrb = smallXpOrb:Clone()
 
 	newOrb.Position = spawnPosition
@@ -32,6 +33,10 @@ function gears.sumTable(t)
 		total += t[i]
 	end
 	return total
+end
+
+function gears.IncreaseToMultiplier(increaseValue)
+	return 1 + increaseValue / 100
 end
 
 return gears
