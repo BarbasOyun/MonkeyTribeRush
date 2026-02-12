@@ -6,20 +6,23 @@ local AugmentsConfig = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
 local player = game.Players.LocalPlayer
 
+local PlayerScripts = game.Players.LocalPlayer:WaitForChild("PlayerScripts")
+-- local Controls = require(PlayerScripts:WaitForChild("PlayerModule")):GetControls() -- Rojo error
+
+local storedWaitLevels = 0
+
 -- UI
--- local leaderstats = player:WaitForChild("leaderstats")
+local playerGui = player:WaitForChild("PlayerGui")
 
 local uiInfos = player:WaitForChild("UIInfos")
-local level = uiInfos:WaitForChild("Level")
 local xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
 local xpBarMax = uiInfos:WaitForChild("XpBarMax")
-
-local playerGui = player:WaitForChild("PlayerGui")
 
 -- Main
 local mainGui = playerGui:WaitForChild("MainGui")
 local levelText = mainGui:WaitForChild("LevelText")
 local levelUpButton = mainGui:WaitForChild("Lvl+Button")
+
 local xpBarBg = mainGui:WaitForChild("XpBarBG")
 local xpBar = xpBarBg:WaitForChild("XpBar")
 local xpBarText = xpBarBg:WaitForChild("XpBarText")
@@ -31,9 +34,12 @@ local rerollButton = cardGui:WaitForChild("RerollButton")
 local cards = { cardGui:WaitForChild("Card_01"), cardGui:WaitForChild("Card_02"), cardGui:WaitForChild("Card_03") }
 local cardTexts =
 	{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
+local blur = nil
 
+-- Events
 local levelUpEvent = Events.LevelUp
 local rerollEvent = Events.Reroll
+local augmentPick = Events.AugmentPick
 
 local function PrintAugmentChoice(augmentsChoice)
 	local function AugmentToString(augment)
@@ -58,12 +64,15 @@ local function SetupAugments(augmentsChoice)
 	end
 end
 
-local function OnLevelUp(level, waitingLevels) -- augmentsChoice
+local function OnLevelUp(level, waitingLevels)
 	levelText.Text = "Level : " .. level
 	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
-	levelUpButton.Visible = true
 
-	-- SetupAugments(augmentsChoice)
+	if waitingLevels > 0 then
+		levelUpButton.Visible = true
+	end
+
+	storedWaitLevels = waitingLevels
 end
 
 local function DisplayAugments()
@@ -71,22 +80,35 @@ local function DisplayAugments()
 		return
 	end
 
+	local lighting = game:WaitForChild("Lighting")
+	blur = Instance.new("BlurEffect")
+	blur.Size = 10
+	blur.Parent = lighting
+
 	cardGui.Enabled = true
+	augmentPick:FireServer()
+
+	-- Controls:Disable()
 end
 
 local function Reroll()
 	rerollEvent:FireServer()
 end
 
--- Also used on lvlup
-local function OnReroll(augmentsChoice)
-	SetupAugments(augmentsChoice)
-end
-
 local function ChooseCard(choiceNbr)
-	cardGui.Enabled = false
-	levelUpButton.Visible = false
+	-- print("Choosed Card : " .. choiceNbr)
+
 	levelUpEvent:FireServer(choiceNbr)
+	levelUpButton.Visible = false
+
+	if storedWaitLevels > 1 then
+		return
+	end
+
+	-- Controls:Enable()
+	blur:Destroy()
+
+	cardGui.Enabled = false
 end
 
 local function UpdateXpBar()
@@ -134,7 +156,7 @@ levelUpEvent.OnClientEvent:Connect(OnLevelUp)
 levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
 rerollButton.MouseButton1Click:Connect(Reroll)
-rerollEvent.OnClientEvent:Connect(OnReroll)
+rerollEvent.OnClientEvent:Connect(SetupAugments)
 
 cards[1].MouseButton1Click:Connect(function()
 	ChooseCard(1)

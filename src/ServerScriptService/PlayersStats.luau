@@ -7,15 +7,18 @@ local Augments = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
 local levelUpEvent = Events.LevelUp
 local rerollEvent = Events.Reroll
-
-print("Player Stats Test")
+local augmentPick = Events.AugmentPick
 
 local playersStats = {}
+
+-- Augment Info
 local currentAugments = {}
+local positionStart = {}
 
 local defaultStats = {
-	level = nil,
-	waitingLevel = nil,
+	level = 1,
+	waitingLevel = 0,
+	pickingAugment = false,
 	attackDamage = 0,
 	attackSpeed = 0,
 	animationTime = 1,
@@ -42,40 +45,29 @@ local defaultStats = {
 
 function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	playersStats[player] = defaultStats
+	local playerStat = playersStats[player]
 
 	local xpBarCurrent = Instance.new("IntValue")
 	xpBarCurrent.Parent = uiInfos
 	xpBarCurrent.Name = "XpBarCurrent"
-	playersStats[player].currentXp = xpBarCurrent
+	playerStat.currentXp = xpBarCurrent
 
 	local xpBarMax = Instance.new("IntValue")
 	xpBarMax.Parent = uiInfos
 	xpBarMax.Name = "XpBarMax"
 	xpBarMax.Value = 50
-	playersStats[player].levelUpXp = xpBarMax
+	playerStat.levelUpXp = xpBarMax
 
 	local bananas = Instance.new("IntValue")
 	bananas.Parent = uiInfos
 	bananas.Name = "Bananas"
-	playersStats[player].bananas = bananas
-
-	local level = Instance.new("IntValue")
-	level.Parent = uiInfos
-	level.Name = "Level"
-	level.Value = 1
-	playersStats[player].level = level
-
-	local waitingLevel = Instance.new("IntValue")
-	waitingLevel.Parent = uiInfos
-	waitingLevel.Name = "WaitingLevel"
-	waitingLevel.Value = 0
-	playersStats[player].waitingLevel = waitingLevel
+	playerStat.bananas = bananas
 
 	local kills = Instance.new("IntValue")
 	kills.Parent = leaderstats
 	kills.Name = "Kills"
 	kills.Value = 0
-	playersStats[player].kills = kills
+	playerStat.kills = kills
 
 	local destruction = Instance.new("IntValue")
 	destruction.Parent = leaderstats
@@ -229,13 +221,13 @@ function playersStats.LevelUp(player)
 
 	-- Manage XP
 	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
-	playerStat.waitingLevel.Value += 1
+	playerStat.waitingLevel += 1
 	playerStat.currentXp.Value = 0
 	playerStat.levelUpXp.Value *= 1.1
 	print(player.Name .. " Leveled Up")
 
 	playersStats.SendAugment(player, playerStat)
-	levelUpEvent:FireClient(player, playerStat.level.Value, playerStat.waitingLevel.Value)
+	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
 
 	playersStats.AddXpToLvl(player, overXp)
 end
@@ -246,6 +238,19 @@ function playersStats.AddXp(xpValue)
 	end
 end
 
+-- Start Augment Choice
+augmentPick.OnServerEvent:Connect(function(player)
+	if not currentAugments[player] then
+		print("No Augments ready for : " .. player.Name)
+		return
+	end
+
+	print(player.Name .. "Is Picking Augment")
+	playersStats[player].pickingAugment = true
+	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
+	-- Make Player Immune
+end)
+
 -- Augment Choice Made
 levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 	if not currentAugments[player] then
@@ -255,18 +260,25 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 
 	-- print(player.Name .. " Choosed : " .. choiceNbr)
 	local playerStat = playersStats[player]
-	playerStat.level.Value += 1
-	playerStat.waitingLevel.Value -= 1
+	playerStat.level += 1
+	playerStat.waitingLevel -= 1
+	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
+
 	--Add Augment Stats
 	local augment = currentAugments[player][choiceNbr]
 	playerStat[augment[1]] += augment[3] -- augmentType and augmentValue
 	currentAugments[player] = nil
 	playersStats.ApplyStats(player)
 
-	if playerStat.waitingLevel.Value > 0 then
+	-- Additional Levels
+	if playerStat.waitingLevel > 0 then
 		playersStats.SendAugment(player, playerStat)
-		levelUpEvent:FireClient(player, playerStat.level.Value, playerStat.waitingLevel.Value)
+		return
 	end
+
+	player.Character:MoveTo(positionStart[player.UserId])
+	positionStart[player.UserId] = nil
+	playersStats[player].pickingAugment = false
 end)
 
 rerollEvent.OnServerEvent:Connect(function(player)
@@ -274,6 +286,8 @@ rerollEvent.OnServerEvent:Connect(function(player)
 		print("No Augments ready for : " .. player.Name)
 		return
 	end
+
+	-- Pay 10 Sticks to Reroll
 
 	playersStats.SendAugment(player, playersStats[player])
 end)

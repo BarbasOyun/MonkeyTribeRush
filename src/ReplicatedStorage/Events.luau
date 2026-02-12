@@ -13,4 +13,5 @@ return {
 	AttackHit = createRemoteEvent("AttackHit"),
 	LevelUp = createRemoteEvent("LevelUp"),
 	Reroll = createRemoteEvent("Reroll"),
+	AugmentPick = createRemoteEvent("AugmentPick"),
 }

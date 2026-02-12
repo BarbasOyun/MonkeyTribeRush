@@ -104,7 +104,8 @@ local function Attack(player)
 	-- Try to Attack using Player's Weapon
 	local playerStat = PlayersStats[player]
 	local weaponInfo = playerStat.weaponInfo
-	if not playerStat or not weaponInfo then
+
+	if not playerStat or playerStat.pickingAugment or not weaponInfo then
 		return
 	end
 
