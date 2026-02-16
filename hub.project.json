@@ -1,0 +1,29 @@
+{
+    "name": "MonkeyTribeRushHub",
+    "tree": {
+        "$className": "DataModel",
+        "ReplicatedFirst": {
+            "$path": "src/Hub/ReplicatedFirst"
+        },
+        "ReplicatedStorage": {
+            "Shared": {
+                "$path": "src/ReplicatedStorage"
+            },
+            "Prefabs": {
+                "$className": "Folder"
+            }
+        },
+        "ServerScriptService": {
+            "Server": {
+                "$path": "src/Hub/ServerScriptService"
+            }
+        },
+        "StarterPlayer": {
+            "StarterPlayerScripts": {
+                "Client": {
+                    "$path": "src/Hub/StarterPlayerScripts"
+                }
+            }
+        }
+    }
+}

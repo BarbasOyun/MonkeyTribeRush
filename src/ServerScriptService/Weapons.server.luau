@@ -34,37 +34,38 @@ local function IncrementCombo(playerStat)
 		playerStat.comboCount = 0
 	end
 
+	-- Reset Combo Count after 2 sec of not Attacking
 	if playerStat.comboReset then
 		task.cancel(playerStat.comboReset)
 	end
 
 	playerStat.comboReset = task.delay(2, function()
-		playerStat.ComboCount = 0
+		playerStat.comboCount = 0
 	end)
 end
 
 local function WeaponDamage(player)
 	-- Check if The Call is Legit
-	if not expectingAttack[player] then
-		-- print("Unexpected AttackHit from player: " .. player.Name)
+	if not expectingAttack[player.UserId] then
+		print("Unexpected AttackHit from player: " .. player.Name)
 		return
 	end
 
-	local weaponInfo = PlayersStats[player].weaponInfo
+	local weaponInfo = PlayersStats[player.UserId].weaponInfo
 	if not weaponInfo then
 		return
 	end
 
-	local playerStat = PlayersStats[player]
+	local playerStat = PlayersStats[player.UserId]
 
 	weaponInfo.sounds.slash:Play()
-	player.Character.Humanoid.WalkSpeed = PlayersStats[player].mobility -- Reset WalkSpeed
+	player.Character.Humanoid.WalkSpeed = PlayersStats[player.UserId].mobility -- Reset WalkSpeed
 
 	local function Hit()
 		local attackPosition = weaponInfo.attackPoint.WorldCFrame
 		Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
 
-		expectingAttack[player] = nil
+		expectingAttack[player.UserId] = nil
 
 		local finalDamage = weaponInfo.finalAttackDamage
 		local critRoll = math.random(0, 100)
@@ -102,7 +103,7 @@ end
 
 local function Attack(player)
 	-- Try to Attack using Player's Weapon
-	local playerStat = PlayersStats[player]
+	local playerStat = PlayersStats[player.UserId]
 	local weaponInfo = playerStat.weaponInfo
 
 	if not playerStat or playerStat.pickingAugment or not weaponInfo then
@@ -115,11 +116,9 @@ local function Attack(player)
 	local missingTime = playerStat.animationTime - attackDelta
 
 	local function StartAttack()
-		-- print("Go Attack")
-		playerStat.lastAttack = tick()
-
 		-- print("Attack By : " .. player.Name)
-		expectingAttack[player] = true
+		playerStat.lastAttack = tick()
+		expectingAttack[player.UserId] = true
 		player.Character.Humanoid.WalkSpeed *= 0.5
 		attackEvent:FireClient(player, playerStat.comboCount + 1, weaponInfo.finalAttackSpeed) -- Animation
 	end
@@ -137,6 +136,7 @@ local function Attack(player)
 		return
 	end
 
+	-- print("Attack non buffer: " .. player.Name)
 	StartAttack()
 end
 
@@ -149,7 +149,7 @@ local function OnEquipped(weapon, weaponInfo)
 	local player = Players:GetPlayerFromCharacter(character)
 	print(weapon.Name .. " Equipped by player: " .. player.Name)
 
-	local playerStat = PlayersStats[player]
+	local playerStat = PlayersStats[player.UserId]
 	playerStat.weaponInfo = weaponInfo
 	PlayersStats.ApplyStats(player)
 
@@ -158,24 +158,37 @@ local function OnEquipped(weapon, weaponInfo)
 end
 
 local function OnUnequipped(weapon)
-	local player = weapon.Parent.Parent -- Backpack
-
-	if not player then
+	if not weapon or weapon.Parent == nil then
 		return
 	end
 
-	PlayersStats[player].weaponInfo = nil
+	local player = weapon.Parent.Parent
+
+	if not player or Players:FindFirstChild(player.Name, false) == nil then
+		return
+	end
+
 	print(weapon.Name .. " Unequipped by player: " .. player.Name)
+
+	local playerStats = PlayersStats[player.UserId]
+	playerStats.weaponInfo = nil
+	playerStats.comboCount = 0
+	playerStats.comboReset = nil
+	expectingAttack[player.UserId] = nil
+	PlayersStats.ApplyStats(player)
+
 	equipEvent:FireClient(player, false)
 end
 
 local function CreateWeaponInfo(weapon)
-	local handle = weapon:WaitForChild("Handle")
+	-- local handle = weapon:WaitForChild("Handle")
+	local handle = weapon.Handle
 
 	local weaponInfo = {
 		weapon = weapon,
 		handle = handle,
-		attackPoint = weapon:WaitForChild("AttackPoint"),
+		-- attackPoint = weapon:WaitForChild("AttackPoint"),
+		attackPoint = weapon.AttackPoint,
 		weaponType = WeaponConfig[weapon.Name].WeaponType,
 		damage = WeaponConfig[weapon.Name].BaseDamage,
 		finalAttackDamage = WeaponConfig[weapon.Name].BaseDamage,
@@ -184,8 +197,10 @@ local function CreateWeaponInfo(weapon)
 		attackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		finalAttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		sounds = {
-			unsheath = handle:WaitForChild("Unsheath"),
-			slash = handle:WaitForChild("Slash"),
+			-- unsheath = handle:WaitForChild("Unsheath"),
+			unsheath = handle.Unsheath,
+			-- slash = handle:WaitForChild("Slash"),
+			slash = handle.Slash,
 		},
 	}
 

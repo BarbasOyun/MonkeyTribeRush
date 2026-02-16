@@ -7,7 +7,7 @@ local AugmentsConfig = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 local player = game.Players.LocalPlayer
 
 local PlayerScripts = game.Players.LocalPlayer:WaitForChild("PlayerScripts")
--- local Controls = require(PlayerScripts:WaitForChild("PlayerModule")):GetControls() -- Rojo error
+local Controls = require(PlayerScripts:WaitForChild("PlayerModule")):GetControls() -- Rojo error
 
 local storedWaitLevels = 0
 
@@ -88,7 +88,7 @@ local function DisplayAugments()
 	cardGui.Enabled = true
 	augmentPick:FireServer()
 
-	-- Controls:Disable()
+	Controls:Disable()
 end
 
 local function Reroll()
@@ -105,7 +105,7 @@ local function ChooseCard(choiceNbr)
 		return
 	end
 
-	-- Controls:Enable()
+	Controls:Enable()
 	blur:Destroy()
 
 	cardGui.Enabled = false
@@ -119,7 +119,6 @@ local function UpdateXpBar()
 	-- print("Update XP Bar : " .. xpBarCurrent.Value .. " / " .. xpBarMax.Value)
 
 	xpBarUpdater = RunService.Heartbeat:Connect(function(dT)
-		-- local targetSize = UDim2.new(xpBarCurrent.Value / xpBarMax.Value, 0, 1, 0)
 		local targetSize = UDim2.fromScale(xpBarCurrent.Value / xpBarMax.Value, 1)
 		xpBar.Size = xpBar.Size:Lerp(targetSize, 5 * dT)
 		xpBarText.Text = xpBarCurrent.Value .. " / " .. xpBarMax.Value
@@ -130,6 +129,8 @@ local function UpdateXpBar()
 		end
 	end)
 end
+
+local function onCharacterAdded(character) end
 
 -- Keybinds
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
@@ -144,10 +145,6 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 		DisplayAugments()
 	end
 end)
-
--- level.Changed:Connect(function()
--- 	levelText.Text = "Level : " .. level.Value
--- end)
 
 xpBarCurrent.Changed:Connect(UpdateXpBar)
 xpBarMax.Changed:Connect(UpdateXpBar)
@@ -173,3 +170,5 @@ end)
 -- Update XP Bar
 xpBarCurrent.Value = 1
 xpBarCurrent.Value = 0
+
+player.CharacterAdded:Connect(onCharacterAdded)

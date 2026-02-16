@@ -86,8 +86,8 @@ local function XpGrabRange()
 		-- print(player.Name)
 		local character = player.Character or player.CharacterAdded:Wait()
 		local position = character.HumanoidRootPart.CFrame.Position
-		local range = PlayersStats[player].pickupRange
-			* Gears.IncreaseToMultiplier(PlayersStats[player].increasedPickupRange)
+		local range = PlayersStats[player.UserId].pickupRange
+			* Gears.IncreaseToMultiplier(PlayersStats[player.UserId].increasedPickupRange)
 
 		-- Gears.DisplayHitBox(position, range, 0.1)
 		local xpOrbs = workspace:GetPartBoundsInRadius(position, range, params)

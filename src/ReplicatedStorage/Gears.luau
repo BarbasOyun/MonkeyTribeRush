@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 local Gizmo = require(ReplicatedStorage.Shared.gizmo)
 
 local gears = {}
-local smallXpOrb = ReplicatedStorage.Prefabs:WaitForChild("SmallXpOrb")
+local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb
 
 function gears.DisplayHitBox(cFrame, range, transparency)
 	local drawSphere = RunService.Heartbeat:Connect(function()

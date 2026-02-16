@@ -6,8 +6,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- Variables
-local localPlayer = Players.LocalPlayer
-local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local animator = humanoid:WaitForChild("Animator")
 
@@ -20,6 +20,7 @@ local attackEvent = Events.ToolAttack
 local equipEvent = Events.ToolEquip
 local attackHitEvent = Events.AttackHit
 
+-- Animations
 local function loadAnimation(animationId)
 	local anim = Instance.new("Animation")
 	anim.AnimationId = animationId
@@ -27,8 +28,8 @@ local function loadAnimation(animationId)
 	animationTrack.Priority = Enum.AnimationPriority.Action
 
 	animationTrack:GetMarkerReachedSignal("AttackHit"):Connect(function()
-		--print("Hit Event Triggered by player: " .. LocalPlayer.Name)
-		attackHitEvent:FireServer(localPlayer)
+		--print("Hit Event Triggered by player: " .. player.Name)
+		attackHitEvent:FireServer(player)
 	end)
 
 	return animationTrack
@@ -42,15 +43,21 @@ local function loadAllAnimations()
 	table.insert(animationTracks, verticalSlash)
 end
 
-loadAllAnimations()
-
 equipEvent.OnClientEvent:Connect(function(isEquipped)
 	--print("Weapon Equipped: " .. tostring(isEquipped) .. " for player: " .. LocalPlayer.Name)
 end)
 
+-- On Respawn
+local function onCharacterAdded(newCharacter)
+	print("Character Added for player: " .. player.Name)
+	animator = newCharacter:WaitForChild("Humanoid"):WaitForChild("Animator")
+	table.clear(animationTracks)
+	loadAllAnimations()
+end
+
 --Attack Triggered
 attackEvent.OnClientEvent:Connect(function(animationId, animationSpeed)
-	--print(LocalPlayer.Name .. " Combo: " .. AnimationId .. " Animation Speed: " .. AnimationSpeed)
+	-- print(localPlayer.Name .. " Combo: " .. animationId .. " Animation Speed: " .. animationSpeed)
 	animationTracks[animationId]:Play()
 	animationTracks[animationId]:AdjustSpeed(animationSpeed)
 end)
@@ -63,7 +70,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		attackEvent:FireServer(localPlayer)
+		attackEvent:FireServer(player)
 		isLClickDown = true
 	end
 end)
@@ -80,6 +87,10 @@ end)
 
 RunService.Heartbeat:Connect(function()
 	if isLClickDown then
-		attackEvent:FireServer(localPlayer)
+		attackEvent:FireServer(player)
 	end
 end)
+
+-- Run
+player.CharacterAdded:Connect(onCharacterAdded)
+loadAllAnimations()

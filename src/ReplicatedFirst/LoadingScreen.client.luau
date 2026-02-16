@@ -4,9 +4,9 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 ReplicatedFirst:RemoveDefaultLoadingScreen()
 
-local playerGui = players.LocalPlayer:WaitForChild("PlayerGui")
+local playerGui = players.LocalPlayer.PlayerGui
 
-local loadingScreen = ReplicatedFirst:WaitForChild("LoadingScreenObj"):Clone()
+local loadingScreen = ReplicatedFirst.LoadingScreenObj:Clone()
 loadingScreen.Parent = playerGui
 
 local frame = loadingScreen.Frame
@@ -26,5 +26,5 @@ end
 
 loadingText.Text = "Loading Complete"
 
-task.wait(2)
+task.wait(1)
 loadingScreen:Destroy()

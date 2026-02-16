@@ -44,8 +44,8 @@ local defaultStats = {
 }
 
 function playersStats.CreatePlayer(player, leaderstats, uiInfos)
-	playersStats[player] = defaultStats
-	local playerStat = playersStats[player]
+	playersStats[player.UserId] = defaultStats
+	local playerStat = playersStats[player.UserId]
 
 	local xpBarCurrent = Instance.new("IntValue")
 	xpBarCurrent.Parent = uiInfos
@@ -86,7 +86,7 @@ function playersStats.CalculateAttackSpeed(playerStat)
 		* Gears.IncreaseToMultiplier(playerStat.attackSpeed)
 	playerStat.animationTime = 1 / playerStat.weaponInfo.finalAttackSpeed
 
-	-- print(" Final Attack Speed: " .. (playerStat.WeaponInfo and playerStat.WeaponInfo.finalAttackSpeed or 0))
+	-- print("Final Attack Speed: " .. (playerStat.weaponInfo and playerStat.weaponInfo.finalAttackSpeed or 0))
 end
 
 function playersStats.CalculateAttackDamage(playerStat)
@@ -110,7 +110,7 @@ end
 
 function playersStats.ApplyStats(player)
 	-- Calculate each stat on this stat changed
-	local playerStat = playersStats[player]
+	local playerStat = playersStats[player.UserId]
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
 
@@ -202,13 +202,13 @@ end
 
 function playersStats.SendAugment(player, playerStat)
 	local augments = playersStats.RollAugments(playerStat.luck)
-	currentAugments[player] = augments
+	currentAugments[player.UserId] = augments
 	rerollEvent:FireClient(player, augments)
 end
 
 function playersStats.AddXpToLvl(player, xp)
 	-- print(player.Name .. " Gained : " .. xp .. " XP")
-	local playerStat = playersStats[player]
+	local playerStat = playersStats[player.UserId]
 	playerStat.currentXp.Value += xp * Gears.IncreaseToMultiplier(playerStat.increasedXp)
 
 	if playerStat.currentXp.Value >= playerStat.levelUpXp.Value then
@@ -217,7 +217,7 @@ function playersStats.AddXpToLvl(player, xp)
 end
 
 function playersStats.LevelUp(player)
-	local playerStat = playersStats[player]
+	local playerStat = playersStats[player.UserId]
 
 	-- Manage XP
 	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
@@ -232,6 +232,7 @@ function playersStats.LevelUp(player)
 	playersStats.AddXpToLvl(player, overXp)
 end
 
+-- Add XP to All Player
 function playersStats.AddXp(xpValue)
 	for _, player in pairs(Players:GetPlayers()) do
 		playersStats.AddXpToLvl(player, xpValue)
@@ -240,34 +241,34 @@ end
 
 -- Start Augment Choice
 augmentPick.OnServerEvent:Connect(function(player)
-	if not currentAugments[player] then
+	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
 	end
 
 	print(player.Name .. "Is Picking Augment")
-	playersStats[player].pickingAugment = true
+	playersStats[player.UserId].pickingAugment = true
 	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
 	-- Make Player Immune
 end)
 
 -- Augment Choice Made
 levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
-	if not currentAugments[player] then
+	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
 	end
 
 	-- print(player.Name .. " Choosed : " .. choiceNbr)
-	local playerStat = playersStats[player]
+	local playerStat = playersStats[player.UserId]
 	playerStat.level += 1
 	playerStat.waitingLevel -= 1
 	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
 
 	--Add Augment Stats
-	local augment = currentAugments[player][choiceNbr]
+	local augment = currentAugments[player.UserId][choiceNbr]
 	playerStat[augment[1]] += augment[3] -- augmentType and augmentValue
-	currentAugments[player] = nil
+	currentAugments[player.UserId] = nil
 	playersStats.ApplyStats(player)
 
 	-- Additional Levels
@@ -278,18 +279,18 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 
 	player.Character:MoveTo(positionStart[player.UserId])
 	positionStart[player.UserId] = nil
-	playersStats[player].pickingAugment = false
+	playersStats[player.UserId].pickingAugment = false
 end)
 
 rerollEvent.OnServerEvent:Connect(function(player)
-	if not currentAugments[player] then
+	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
 	end
 
-	-- Pay 10 Sticks to Reroll
+	-- TODO : Pay 10 Sticks to Reroll
 
-	playersStats.SendAugment(player, playersStats[player])
+	playersStats.SendAugment(player, playersStats[player.UserId])
 end)
 
 return playersStats
