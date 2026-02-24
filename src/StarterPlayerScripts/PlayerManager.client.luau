@@ -11,8 +11,14 @@ local Controls = require(PlayerScripts:WaitForChild("PlayerModule")):GetControls
 
 local storedWaitLevels = 0
 
+-- Events
+local levelUpEvent = Events.LevelUp
+local rerollEvent = Events.Reroll
+local augmentPick = Events.AugmentPick
+
 -- UI
-local playerGui = player:WaitForChild("PlayerGui")
+--local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
@@ -36,10 +42,19 @@ local cardTexts =
 	{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
 local blur = nil
 
--- Events
-local levelUpEvent = Events.LevelUp
-local rerollEvent = Events.Reroll
-local augmentPick = Events.AugmentPick
+-- Sounds
+-- local levelUpSound = playerGui.Sounds:WaitForChild("LvlUp")
+local levelUpSound = playerGui.Sounds.LvlUp
+local augmentMenuSound = playerGui.Sounds:WaitForChild("AugmentMenu")
+local augmentPickSound = playerGui.Sounds:WaitForChild("AugmentPick")
+
+local function OnLevelUp(level, waitingLevels)
+	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
+	levelUpSound:Play()
+
+	levelUpButton.Visible = true
+	storedWaitLevels = waitingLevels
+end
 
 local function PrintAugmentChoice(augmentsChoice)
 	local function AugmentToString(augment)
@@ -64,7 +79,7 @@ local function SetupAugments(augmentsChoice)
 	end
 end
 
-local function OnLevelUp(level, waitingLevels)
+local function AugmentPickResponse(level, waitingLevels)
 	levelText.Text = "Level : " .. level
 	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
 
@@ -86,6 +101,7 @@ local function DisplayAugments()
 	blur.Parent = lighting
 
 	cardGui.Enabled = true
+	augmentMenuSound:Play()
 	augmentPick:FireServer()
 
 	Controls:Disable()
@@ -100,6 +116,7 @@ local function ChooseCard(choiceNbr)
 
 	levelUpEvent:FireServer(choiceNbr)
 	levelUpButton.Visible = false
+	augmentPickSound:Play()
 
 	if storedWaitLevels > 1 then
 		return
@@ -125,12 +142,60 @@ local function UpdateXpBar()
 
 		if xpBar.Size.X.Scale >= 0.99 then
 			xpBar.Size = targetSize
+			if not xpBarUpdater then
+				return
+			end
 			xpBarUpdater:Disconnect()
 		end
 	end)
 end
 
-local function onCharacterAdded(character) end
+local function InitUi()
+	rerollButton.MouseButton1Click:Connect(Reroll)
+	rerollEvent.OnClientEvent:Connect(SetupAugments)
+
+	cards[1].MouseButton1Click:Connect(function()
+		ChooseCard(1)
+	end)
+
+	cards[2].MouseButton1Click:Connect(function()
+		ChooseCard(2)
+	end)
+
+	cards[3].MouseButton1Click:Connect(function()
+		ChooseCard(3)
+	end)
+
+	-- Update XP Bar
+	xpBarCurrent.Value = 1
+	xpBarCurrent.Value = 0
+end
+
+-- Respawn
+local function onCharacterAdded(character)
+	-- Re-fetch UI elements on respawn
+	uiInfos = player:WaitForChild("UIInfos")
+	xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
+	xpBarMax = uiInfos:WaitForChild("XpBarMax")
+
+	mainGui = playerGui:WaitForChild("MainGui")
+	xpBarBg = mainGui:WaitForChild("XpBarBG")
+	xpBar = xpBarBg:WaitForChild("XpBar")
+	xpBarText = xpBarBg:WaitForChild("XpBarText")
+	xpBarUpdater = nil
+
+	levelText = mainGui:WaitForChild("LevelText")
+	levelUpButton = mainGui:WaitForChild("Lvl+Button")
+
+	cardGui = playerGui:WaitForChild("CardGui")
+	rerollButton = cardGui:WaitForChild("RerollButton")
+	cards = { cardGui:WaitForChild("Card_01"), cardGui:WaitForChild("Card_02"), cardGui:WaitForChild("Card_03") }
+	cardTexts =
+		{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
+	blur = nil
+
+	InitUi()
+end
 
 -- Keybinds
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
@@ -141,7 +206,10 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 
 	local keyName = UserInputService:GetStringForKeyCode(input.KeyCode)
 
-	if keyName:lower() == "a" then
+	-- if keyName:lower() == "a" then
+	-- 	DisplayAugments()
+	-- end
+	if input.KeyCode == Enum.KeyCode.Q then
 		DisplayAugments()
 	end
 end)
@@ -152,23 +220,8 @@ xpBarMax.Changed:Connect(UpdateXpBar)
 levelUpEvent.OnClientEvent:Connect(OnLevelUp)
 levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
-rerollButton.MouseButton1Click:Connect(Reroll)
-rerollEvent.OnClientEvent:Connect(SetupAugments)
+augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 
-cards[1].MouseButton1Click:Connect(function()
-	ChooseCard(1)
-end)
-
-cards[2].MouseButton1Click:Connect(function()
-	ChooseCard(2)
-end)
-
-cards[3].MouseButton1Click:Connect(function()
-	ChooseCard(3)
-end)
-
--- Update XP Bar
-xpBarCurrent.Value = 1
-xpBarCurrent.Value = 0
+InitUi()
 
 player.CharacterAdded:Connect(onCharacterAdded)

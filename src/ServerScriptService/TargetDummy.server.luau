@@ -4,6 +4,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Gears = require(ReplicatedStorage.Shared.Gears)
+local dummyParent = workspace.WeaponHit
 
 local function setupDummy(dummy)
 	local humanoid = dummy:FindFirstChildOfClass("Humanoid")
@@ -19,7 +20,7 @@ local function setupDummy(dummy)
 		Gears.SpawnXP(dummy:GetPivot().Position)
 		task.wait(1)
 		-- Respawn
-		clone.Parent = workspace
+		clone.Parent = dummyParent
 		dummy:Destroy()
 	end
 

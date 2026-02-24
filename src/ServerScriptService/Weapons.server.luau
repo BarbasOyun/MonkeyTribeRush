@@ -16,6 +16,13 @@ local attackHitEvent = Events.AttackHit
 
 -- Players
 local expectingAttack = {}
+local weaponHitParam = OverlapParams.new()
+weaponHitParam.FilterType = Enum.RaycastFilterType.Include
+weaponHitParam.FilterDescendantsInstances = { workspace.WeaponHit }
+weaponHitParam.MaxParts = 50
+
+-- Buildings
+local buildingsHealth = {}
 
 function FindHumanoidFromPart(part)
 	local character = part.Parent
@@ -44,49 +51,71 @@ local function IncrementCombo(playerStat)
 	end)
 end
 
-local function WeaponDamage(player)
-	-- Check if The Call is Legit
-	if not expectingAttack[player.UserId] then
-		print("Unexpected AttackHit from player: " .. player.Name)
-		return
-	end
+local function HitBuilding(building, finalDamage, playerStat)
+	if not buildingsHealth[building] then
+		local healthMod = 1 + math.random(1, 10) / 10
+		print("Health Mod : " .. healthMod)
+		local baseHealth = 0 -- Update for more Materials
 
-	local weaponInfo = PlayersStats[player.UserId].weaponInfo
-	if not weaponInfo then
-		return
-	end
-
-	local playerStat = PlayersStats[player.UserId]
-
-	weaponInfo.sounds.slash:Play()
-	player.Character.Humanoid.WalkSpeed = PlayersStats[player.UserId].mobility -- Reset WalkSpeed
-
-	local function Hit()
-		local attackPosition = weaponInfo.attackPoint.WorldCFrame
-		Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
-
-		expectingAttack[player.UserId] = nil
-
-		local finalDamage = weaponInfo.finalAttackDamage
-		local critRoll = math.random(0, 100)
-
-		if critRoll <= playerStat.critChance then
-			-- print(
-			-- 	"Crit : "
-			-- 		.. finalDamage
-			-- 		.. " -> "
-			-- 		.. finalDamage * Gears.IncreaseToMultiplier(playerStat.critMultiplier)
-			-- )
-			finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
+		if building.Parent and building.Parent:HasTag("WoodMaterial") then
+			baseHealth = 100 * healthMod
+		else
+			baseHealth = 200 * healthMod
 		end
 
-		local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range)
-		local humanoidsHit = {}
+		buildingsHealth[building] = baseHealth
+	end
 
-		for _, hit in ipairs(hits) do
-			--print("Hit Part: " .. hit.Name)
-			local humanoid = FindHumanoidFromPart(hit)
-			if humanoid and humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
+	buildingsHealth[building] -= finalDamage
+
+	-- Building Destroyed
+	if buildingsHealth[building] <= 0 then
+		building:Destroy()
+		buildingsHealth[building] = nil
+		playerStat.destruction.Value += 1
+
+		-- Banana Loot
+		local roll = math.random(0, 100)
+		if roll < 80 then
+			return
+		end
+
+		for _ = 1, math.random(1, 3) do
+			task.spawn(function()
+				Gears.SpawnBanana(building.Position)
+			end)
+		end
+	end
+end
+
+local function Hit(player, playerStat, weaponInfo)
+	expectingAttack[player.UserId] = nil
+
+	-- Get Damage & Crit
+	local finalDamage = weaponInfo.finalAttackDamage
+	local critRoll = math.random(0, 100)
+	-- print("Crit roll : " .. critRoll .. " Crit Chance : " .. playerStat.critChance)
+
+	if critRoll <= playerStat.critChance then
+		finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
+		-- print("Crit " .. finalDamage)
+		weaponInfo.sounds.crit:Play()
+	else
+		weaponInfo.sounds.slash:Play()
+	end
+
+	-- Hit Detection
+	local attackPosition = weaponInfo.attackPoint.WorldCFrame
+	Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
+	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
+	local humanoidsHit = {}
+
+	for _, hit in ipairs(hits) do
+		-- print("Hit Part: " .. hit.Name)
+		local humanoid = FindHumanoidFromPart(hit)
+		if humanoid then
+			-- Enemy Hit
+			if humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
 				humanoidsHit[humanoid] = true
 				humanoid:TakeDamage(finalDamage)
 				-- print(player.name .. " Dealt " .. weaponInfo.Damage .. " damage to " .. humanoid.Parent.Name)
@@ -94,11 +123,31 @@ local function WeaponDamage(player)
 					playerStat.kills.Value += 1
 				end
 			end
+		else
+			HitBuilding(hit, finalDamage, playerStat)
 		end
 	end
+end
 
+-- Attack Callback
+local function WeaponDamage(player)
+	-- Check if The Call is Legit
+	if not expectingAttack[player.UserId] then
+		print("Unexpected AttackHit from player: " .. player.Name)
+		return
+	end
+
+	local playerStat = PlayersStats[player.UserId]
+	player.Character.Humanoid.WalkSpeed = playerStat.mobility -- Reset WalkSpeed
+
+	local weaponInfo = playerStat.weaponInfo
+
+	if not weaponInfo then
+		return
+	end
+
+	Hit(player, playerStat, weaponInfo)
 	IncrementCombo(playerStat)
-	Hit()
 end
 
 local function Attack(player)
@@ -186,9 +235,9 @@ local function CreateWeaponInfo(weapon)
 
 	local weaponInfo = {
 		weapon = weapon,
+		weaponSize = weapon:GetScale(),
 		handle = handle,
-		-- attackPoint = weapon:WaitForChild("AttackPoint"),
-		attackPoint = weapon.AttackPoint,
+		attackPoint = weapon.Handle.AttackPoint,
 		weaponType = WeaponConfig[weapon.Name].WeaponType,
 		damage = WeaponConfig[weapon.Name].BaseDamage,
 		finalAttackDamage = WeaponConfig[weapon.Name].BaseDamage,
@@ -197,10 +246,9 @@ local function CreateWeaponInfo(weapon)
 		attackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		finalAttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
 		sounds = {
-			-- unsheath = handle:WaitForChild("Unsheath"),
 			unsheath = handle.Unsheath,
-			-- slash = handle:WaitForChild("Slash"),
 			slash = handle.Slash,
+			crit = handle.CriticalSlash,
 		},
 	}
 
@@ -228,5 +276,6 @@ local function SetupWeaponInstances(weaponTag)
 	CollectionService:GetInstanceAddedSignal(weaponTag):Connect(setupWeapon)
 end
 
+SetupWeaponInstances("WoodenClub")
 SetupWeaponInstances("IronMace")
 SetupWeaponInstances("IronAxe")

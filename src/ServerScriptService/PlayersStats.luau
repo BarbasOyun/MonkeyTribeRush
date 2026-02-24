@@ -5,9 +5,9 @@ local Events = require(ReplicatedStorage.Shared.Events)
 local Gears = require(ReplicatedStorage.Shared.Gears)
 local Augments = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
-local levelUpEvent = Events.LevelUp
+local levelUpEvent = Events.LevelUp -- Server = Augment Choice Made, Client = Display LvlUp Button
 local rerollEvent = Events.Reroll
-local augmentPick = Events.AugmentPick
+local augmentPick = Events.AugmentPick -- Server = Augment Pick State, Client = Update Levels Display
 
 local playersStats = {}
 
@@ -37,16 +37,48 @@ local defaultStats = {
 	currentXp = nil,
 	pickupRange = 10,
 	increasedPickupRange = 0,
+	finalPickupRange = 10,
 	critChance = 5,
 	critMultiplier = 50,
 	weaponInfo = nil,
+	kills = nil,
 	bananas = nil,
+}
+
+-- TODO : Implement
+local augmentStats = {
+	attackDamage = 0,
+	attackSpeed = 0,
+	aoe = 0,
+	maxHealth = 100,
+	lifeRegen = 0,
+	damageReduction = 0,
+	mobility = 15,
+	luck = 0,
+	increasedXp = 0,
+	increasedPickupRange = 0,
+	critChance = 5,
+	critMultiplier = 50,
 }
 
 function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	playersStats[player.UserId] = defaultStats
 	local playerStat = playersStats[player.UserId]
 
+	-- Leader Stats
+	local kills = Instance.new("IntValue")
+	kills.Parent = leaderstats
+	kills.Name = "Kills"
+	-- kills.Value = 0
+	playerStat.kills = kills
+
+	local destruction = Instance.new("IntValue")
+	destruction.Parent = leaderstats
+	destruction.Name = "Destruction"
+	-- destruction.Value = 0
+	playerStat.destruction = destruction
+
+	-- UI Info
 	local xpBarCurrent = Instance.new("IntValue")
 	xpBarCurrent.Parent = uiInfos
 	xpBarCurrent.Name = "XpBarCurrent"
@@ -62,17 +94,6 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	bananas.Parent = uiInfos
 	bananas.Name = "Bananas"
 	playerStat.bananas = bananas
-
-	local kills = Instance.new("IntValue")
-	kills.Parent = leaderstats
-	kills.Name = "Kills"
-	kills.Value = 0
-	playerStat.kills = kills
-
-	local destruction = Instance.new("IntValue")
-	destruction.Parent = leaderstats
-	destruction.Name = "Destruction"
-	destruction.Value = 0
 
 	playersStats.ApplyStats(player)
 end
@@ -119,6 +140,8 @@ function playersStats.ApplyStats(player)
 	humanoid.JumpPower = 40 + playerStat.mobility / 2
 	-- playerStat.currentXp.Value = playerStat.currentXp.Value -- Update XP Bar
 
+	playerStat.finalPickupRange = playerStat.pickupRange * Gears.IncreaseToMultiplier(playerStat.increasedPickupRange)
+
 	-- Life Regen
 	if playerStat.lifeRegenUpdate then
 		playerStat.lifeRegenUpdate:Disconnect()
@@ -131,11 +154,24 @@ function playersStats.ApplyStats(player)
 		end)
 	end
 
+	playerStat.damageReduction = math.clamp(playerStat.damageReduction, 0, 90) -- Cap DR to 90%
+
 	playersStats.CalculateAttackSpeed(playerStat)
 	playersStats.CalculateAttackDamage(playerStat)
 	playersStats.CalculateAoe(playerStat)
+
+	local weaponInfo = playerStat.weaponInfo
+
+	-- Weapon Size
+	if not weaponInfo then
+		return
+	end
+
+	local weapon = weaponInfo.weapon
+	weapon:ScaleTo(weaponInfo.weaponSize * Gears.IncreaseToMultiplier(playerStat.aoe))
 end
 
+-- Level & Augments
 function playersStats.RollAugments(luck)
 	local function GetWeights()
 		-- local weights = Augments.weights
@@ -219,7 +255,7 @@ end
 function playersStats.LevelUp(player)
 	local playerStat = playersStats[player.UserId]
 
-	-- Manage XP
+	-- Compute XP
 	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
 	playerStat.waitingLevel += 1
 	playerStat.currentXp.Value = 0
@@ -239,14 +275,14 @@ function playersStats.AddXp(xpValue)
 	end
 end
 
--- Start Augment Choice
+-- Start Augment Pick -> Set Player State
 augmentPick.OnServerEvent:Connect(function(player)
 	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
 	end
 
-	print(player.Name .. "Is Picking Augment")
+	-- print(player.Name .. "Is Picking Augment")
 	playersStats[player.UserId].pickingAugment = true
 	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
 	-- Make Player Immune
@@ -259,11 +295,13 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 		return
 	end
 
+	-- Update Level
 	-- print(player.Name .. " Choosed : " .. choiceNbr)
 	local playerStat = playersStats[player.UserId]
 	playerStat.level += 1
 	playerStat.waitingLevel -= 1
-	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
+	-- levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
+	augmentPick:FireClient(player, playerStat.level, playerStat.waitingLevel)
 
 	--Add Augment Stats
 	local augment = currentAugments[player.UserId][choiceNbr]
