@@ -3,7 +3,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Gears = require(script.Parent.Gears)
+local Gears = require(ServerScriptService.Server.Gears)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 

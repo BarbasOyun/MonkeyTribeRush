@@ -13,21 +13,11 @@ local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 local gears = {}
 
 local weaponHitFolder = workspace.WeaponHit
-local totalBuildings = 0
-local buildingCount = 0
 
 -- Prefabs
 local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb
 local banana = ReplicatedStorage.Prefabs.Banana
 local enemy = ReplicatedStorage.Prefabs.Robot
-
--- Stage
-local maxStage = 1 -- TODO : Roll
-local currentStage = 0
-local eventsEnum = { SWARM = "SWARM" } -- TODO Add More Events
-local maxEvents = 0
-local currentEvent = 0
-local stageEvents = {}
 
 function gears.DisplayHitBox(cFrame, range, transparency)
 	local drawSphere = RunService.Heartbeat:Connect(function()
@@ -60,6 +50,18 @@ end
 
 function gears.FloatRandom(minNbr, maxNbr)
 	return math.random(minNbr, maxNbr - 1) + math.random(1, 10) / 10
+end
+
+function gears.PointsDistance(pointA, pointB)
+	return (pointA - pointB).Magnitude
+end
+
+function gears.NormalizeOrZero(vector2)
+	if vector2 == Vector2.zero then
+		return Vector2.zero
+	end
+
+	return vector2.Unit
 end
 
 function gears.ParabolaPos(startPos, endPos, height, progress)
@@ -135,27 +137,6 @@ function gears.SpawnEnemy(spawnPosition)
 	ServerEvents.EnemySpawned:Fire(newEnemy)
 end
 
-function gears.StartStage()
-	-- Generate Map
-
-	-- Stage Events
-	maxEvents = math.random(2, 5)
-
-	for i = 0, maxEvents do
-		table.insert(stageEvents, eventsEnum.SWARM)
-		-- print("Stage Event " .. i .. " : " .. eventsEnum.SWARM)
-	end
-
-	-- Calculate Max Building
-	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
-		if object:IsA("BasePart") then
-			-- This code runs for every part, even in sub-models
-			-- print(object.Name)
-			totalBuildings += 1
-		end
-	end
-end
-
 function gears.SaveData()
 	-- Save Data : Kills, Destruction, Bananas -> use pcall
 	-- Cap Data to max
@@ -164,36 +145,6 @@ function gears.SaveData()
 		print("Save Data for : " .. player.Name)
 		print(player.leaderstats)
 		-- BananasData:IncrementAsync(player.UserId, 1)
-	end
-end
-
-function gears.IncrementBuilding()
-	buildingCount += 1
-	local stageProgress = buildingCount / totalBuildings
-	-- print("Current Stage Progress : " .. stageProgress)
-
-	-- Check Stage Events
-	if currentEvent / maxEvents >= stageProgress then
-		print("Trigger : " .. currentEvent)
-		currentEvent += 1
-		print(stageEvents[currentEvent])
-	end
-
-	if stageProgress >= 0.9 then
-		print("Stage Finished")
-		currentStage += 1
-
-		task.spawn(function()
-			gears.SaveData()
-		end)
-
-		if currentStage >= maxStage then
-			print("Level Finished")
-			-- Go Back to Hub
-			return
-		end
-
-		print("15 sec until New Stage")
 	end
 end
 

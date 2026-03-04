@@ -9,7 +9,8 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
-local Gears = require(ServerScriptService.Server.Gears)
+-- local Gears = require(ServerScriptService.Server.Gears)
+local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local Events = ReplicatedStorage.Shared
 
 -- Variables
@@ -37,13 +38,6 @@ local function EquipDefaultWeapon(player)
 	if defaultTool then
 		humanoid:EquipTool(defaultTool)
 	end
-end
-
-local function SpawnRangeAroundPlayer(player)
-	local radius = math.random(5, 8)
-	local progress = Gears.FloatRandom(0, math.pi * 2)
-	local circlePos = Gears.CirclePos(radius, progress)
-	return player.PrimaryPart.Position + Vector3.new(circlePos.X, 0, circlePos.Y)
 end
 
 local function GetXp(xpOrb, player, playerStats)
@@ -140,4 +134,4 @@ Players.PlayerAdded:Connect(function(player)
 	-- use pcall
 end)
 
-Gears.StartStage()
+MapGenerator.StartStage()

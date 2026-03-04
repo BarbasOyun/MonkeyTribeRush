@@ -9,6 +9,7 @@ local CollectionService = game:GetService("CollectionService")
 local Events = require(ReplicatedStorage.Shared.Events)
 local WeaponConfig = require(ReplicatedStorage.Shared.Modules.WeaponConfig)
 local Gears = require(ServerScriptService.Server.Gears)
+local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 
 --Remote Events
 local attackEvent = Events.ToolAttack
@@ -74,7 +75,7 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 		building:Destroy()
 		buildingsHealth[building] = nil
 		playerStat.destruction.Value += 1
-		Gears.IncrementBuilding()
+		MapGenerator.IncrementBuilding()
 
 		-- Enemy Spawn
 		local enemyRoll = math.random(0, 100)

@@ -48,20 +48,20 @@ local defaultStats = {
 }
 
 -- TODO : Implement
-local augmentStats = {
-	attackDamage = 0,
-	attackSpeed = 0,
-	aoe = 0,
-	maxHealth = 100,
-	lifeRegen = 0,
-	damageReduction = 0,
-	mobility = 15,
-	luck = 0,
-	increasedXp = 0,
-	increasedPickupRange = 0,
-	critChance = 5,
-	critMultiplier = 50,
-}
+-- local augmentStats = {
+-- 	attackDamage = 0,
+-- 	attackSpeed = 0,
+-- 	aoe = 0,
+-- 	maxHealth = 100,
+-- 	lifeRegen = 0,
+-- 	damageReduction = 0,
+-- 	mobility = 15,
+-- 	luck = 0,
+-- 	increasedXp = 0,
+-- 	increasedPickupRange = 0,
+-- 	critChance = 5,
+-- 	critMultiplier = 50,
+-- }
 
 function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	playersStats[player.UserId] = defaultStats
