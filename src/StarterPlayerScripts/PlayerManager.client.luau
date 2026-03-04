@@ -24,7 +24,7 @@ local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
 local xpBarMax = uiInfos:WaitForChild("XpBarMax")
 
--- Main
+-- Main UI
 local mainGui = playerGui:WaitForChild("MainGui")
 local levelText = mainGui:WaitForChild("LevelText")
 local levelUpButton = mainGui:WaitForChild("Lvl+Button")
@@ -33,6 +33,9 @@ local xpBarBg = mainGui:WaitForChild("XpBarBG")
 local xpBar = xpBarBg:WaitForChild("XpBar")
 local xpBarText = xpBarBg:WaitForChild("XpBarText")
 local xpBarUpdater = nil
+
+local bananas = uiInfos:WaitForChild("Bananas")
+local bananaText = mainGui:WaitForChild("BananaNbrText")
 
 -- Augments
 local cardGui = playerGui:WaitForChild("CardGui")
@@ -45,8 +48,9 @@ local blur = nil
 -- Sounds
 -- local levelUpSound = playerGui.Sounds:WaitForChild("LvlUp")
 local levelUpSound = playerGui.Sounds.LvlUp
-local augmentMenuSound = playerGui.Sounds:WaitForChild("AugmentMenu")
-local augmentPickSound = playerGui.Sounds:WaitForChild("AugmentPick")
+local augmentMenuSound = playerGui.Sounds.AugmentMenu
+local augmentPickSound = playerGui.Sounds.AugmentPick
+local getXPSound = playerGui.Sounds.GetXp
 
 local function OnLevelUp(level, waitingLevels)
 	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
@@ -184,6 +188,9 @@ local function onCharacterAdded(character)
 	xpBarText = xpBarBg:WaitForChild("XpBarText")
 	xpBarUpdater = nil
 
+	bananas = uiInfos.Bananas
+	bananaText = mainGui:WaitForChild("BananaNbrText")
+
 	levelText = mainGui:WaitForChild("LevelText")
 	levelUpButton = mainGui:WaitForChild("Lvl+Button")
 
@@ -204,11 +211,6 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 		return
 	end
 
-	local keyName = UserInputService:GetStringForKeyCode(input.KeyCode)
-
-	-- if keyName:lower() == "a" then
-	-- 	DisplayAugments()
-	-- end
 	if input.KeyCode == Enum.KeyCode.Q then
 		DisplayAugments()
 	end
@@ -217,10 +219,18 @@ end)
 xpBarCurrent.Changed:Connect(UpdateXpBar)
 xpBarMax.Changed:Connect(UpdateXpBar)
 
+bananas.Changed:Connect(function()
+	bananaText.Text = bananas.Value
+end)
+
 levelUpEvent.OnClientEvent:Connect(OnLevelUp)
 levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
 augmentPick.OnClientEvent:Connect(AugmentPickResponse)
+
+Events.XpPickup.OnClientEvent:Connect(function()
+	getXPSound:Play()
+end)
 
 InitUi()
 

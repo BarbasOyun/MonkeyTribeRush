@@ -2,8 +2,9 @@
 --Updated by RedRocStudio
 
 local CollectionService = game:GetService("CollectionService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Gears = require(ReplicatedStorage.Shared.Gears)
+-- local ServerScriptService = game:GetService("ServerScriptService")
+
+-- local Gears = require(ServerScriptService.Server.Gears)
 local dummyParent = workspace.WeaponHit
 
 local function setupDummy(dummy)
@@ -17,7 +18,7 @@ local function setupDummy(dummy)
 
 	local function OnDeath()
 		print(dummy.Name .. " Died")
-		Gears.SpawnXP(dummy:GetPivot().Position)
+		-- Gears.SpawnXP(dummy:GetPivot().Position)
 		task.wait(1)
 		-- Respawn
 		clone.Parent = dummyParent

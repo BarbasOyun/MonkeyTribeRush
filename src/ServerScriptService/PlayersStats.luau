@@ -1,13 +1,15 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
+
 local Events = require(ReplicatedStorage.Shared.Events)
-local Gears = require(ReplicatedStorage.Shared.Gears)
+local Gears = require(ServerScriptService.Server.Gears)
 local Augments = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
 
-local levelUpEvent = Events.LevelUp -- Server = Augment Choice Made, Client = Display LvlUp Button
+local levelUpEvent = Events.LevelUp -- Server = Augment Choice Made / Client = Display LvlUp Button
 local rerollEvent = Events.Reroll
-local augmentPick = Events.AugmentPick -- Server = Augment Pick State, Client = Update Levels Display
+local augmentPick = Events.AugmentPick -- Server = Augment Pick State / Client = Update Levels Display
 
 local playersStats = {}
 

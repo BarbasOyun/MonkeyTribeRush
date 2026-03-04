@@ -5,6 +5,7 @@ local function createRemoteEvent(name)
 	return remoteEvent
 end
 
+-- Load Once
 --print("Events module loaded")
 
 return {
@@ -14,4 +15,5 @@ return {
 	LevelUp = createRemoteEvent("LevelUp"),
 	Reroll = createRemoteEvent("Reroll"),
 	AugmentPick = createRemoteEvent("AugmentPick"),
+	XpPickup = createRemoteEvent("XpPickup"),
 }

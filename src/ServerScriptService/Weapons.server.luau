@@ -3,11 +3,12 @@ local Players = game:GetService("Players")
 local PlayersStats = require(script.Parent.PlayersStats)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local WeaponConfig = require(ReplicatedStorage.Shared.Modules.WeaponConfig)
-local Gears = require(ReplicatedStorage.Shared.Gears)
+local Gears = require(ServerScriptService.Server.Gears)
 
 --Remote Events
 local attackEvent = Events.ToolAttack
@@ -51,16 +52,16 @@ local function IncrementCombo(playerStat)
 	end)
 end
 
-local function HitBuilding(building, finalDamage, playerStat)
+local function HitBuilding(building, finalDamage, player, playerStat)
 	if not buildingsHealth[building] then
-		local healthMod = 1 + math.random(1, 10) / 10
-		print("Health Mod : " .. healthMod)
+		local healthMod = Gears.FloatRandom(1, 2)
+		-- print(building.Name .. " Health Mod : " .. healthMod)
 		local baseHealth = 0 -- Update for more Materials
 
 		if building.Parent and building.Parent:HasTag("WoodMaterial") then
 			baseHealth = 100 * healthMod
 		else
-			baseHealth = 200 * healthMod
+			baseHealth = 180 * healthMod
 		end
 
 		buildingsHealth[building] = baseHealth
@@ -73,6 +74,13 @@ local function HitBuilding(building, finalDamage, playerStat)
 		building:Destroy()
 		buildingsHealth[building] = nil
 		playerStat.destruction.Value += 1
+		Gears.IncrementBuilding()
+
+		-- Enemy Spawn
+		local enemyRoll = math.random(0, 100)
+		if enemyRoll < 33 then -- 1 / 3
+			Gears.SpawnEnemyCircle(player.Character.PrimaryPart.Position)
+		end
 
 		-- Banana Loot
 		local roll = math.random(0, 100)
@@ -88,23 +96,7 @@ local function HitBuilding(building, finalDamage, playerStat)
 	end
 end
 
-local function Hit(player, playerStat, weaponInfo)
-	expectingAttack[player.UserId] = nil
-
-	-- Get Damage & Crit
-	local finalDamage = weaponInfo.finalAttackDamage
-	local critRoll = math.random(0, 100)
-	-- print("Crit roll : " .. critRoll .. " Crit Chance : " .. playerStat.critChance)
-
-	if critRoll <= playerStat.critChance then
-		finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
-		-- print("Crit " .. finalDamage)
-		weaponInfo.sounds.crit:Play()
-	else
-		weaponInfo.sounds.slash:Play()
-	end
-
-	-- Hit Detection
+local function HitDetection(player, playerStat, weaponInfo, finalDamage)
 	local attackPosition = weaponInfo.attackPoint.WorldCFrame
 	Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
 	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
@@ -124,7 +116,7 @@ local function Hit(player, playerStat, weaponInfo)
 				end
 			end
 		else
-			HitBuilding(hit, finalDamage, playerStat)
+			HitBuilding(hit, finalDamage, player, playerStat)
 		end
 	end
 end
@@ -139,6 +131,7 @@ local function WeaponDamage(player)
 
 	local playerStat = PlayersStats[player.UserId]
 	player.Character.Humanoid.WalkSpeed = playerStat.mobility -- Reset WalkSpeed
+	expectingAttack[player.UserId] = nil
 
 	local weaponInfo = playerStat.weaponInfo
 
@@ -146,7 +139,20 @@ local function WeaponDamage(player)
 		return
 	end
 
-	Hit(player, playerStat, weaponInfo)
+	-- Get Damage & Crit
+	local finalDamage = weaponInfo.finalAttackDamage
+	local critRoll = math.random(0, 100)
+	-- print("Crit roll : " .. critRoll .. " Crit Chance : " .. playerStat.critChance)
+
+	if critRoll <= playerStat.critChance then
+		finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
+		-- print("Crit " .. finalDamage)
+		weaponInfo.sounds.crit:Play()
+	else
+		weaponInfo.sounds.slash:Play()
+	end
+
+	HitDetection(player, playerStat, weaponInfo, finalDamage)
 	IncrementCombo(playerStat)
 end
 

@@ -1,11 +1,16 @@
 -- Services
-local DataStoreService = game:GetService("DataStoreService"):GetOrderedDataStore("Wins")
-local Players = game:GetService("Players")
-local PlayersStats = require(script.Parent.PlayersStats)
+local DataStoreService = game:GetService("DataStoreService")
+local KillsData = DataStoreService:GetOrderedDataStore("Wins") -- TODO : Use Scopes
+local BananasData = DataStoreService:GetDataStore("Bananas")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Gears = require(ReplicatedStorage.Shared.Gears)
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local PlayersStats = require(ServerScriptService.Server.PlayersStats)
+local Gears = require(ServerScriptService.Server.Gears)
+local Events = ReplicatedStorage.Shared
 
 -- Variables
 local frameCount = 0
@@ -16,7 +21,6 @@ local xpPickupParam = OverlapParams.new()
 xpPickupParam.FilterType = Enum.RaycastFilterType.Include
 xpPickupParam.FilterDescendantsInstances = { workspace.XP_Orbs }
 xpPickupParam.MaxParts = 50
-local getXpSound = workspace.GetXp
 
 local function EquipDefaultWeapon(player)
 	local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -35,19 +39,27 @@ local function EquipDefaultWeapon(player)
 	end
 end
 
-local function GetXp(xpOrb)
+local function SpawnRangeAroundPlayer(player)
+	local radius = math.random(5, 8)
+	local progress = Gears.FloatRandom(0, math.pi * 2)
+	local circlePos = Gears.CirclePos(radius, progress)
+	return player.PrimaryPart.Position + Vector3.new(circlePos.X, 0, circlePos.Y)
+end
+
+local function GetXp(xpOrb, player, playerStats)
 	if xpOrb.Name == "SmallXpOrb" then
 		-- print("Add Small XP Orb")
 		PlayersStats.AddXp(10)
-		getXpSound:Play()
 	elseif xpOrb.Name == "Banana" then
-		print("Banana Collected")
+		-- print("Banana Collected")
+		playerStats.bananas.Value += 1
 	end
 
+	Events.XpPickup:FireClient(player)
 	xpOrb:Destroy()
 end
 
-local function GrabXp(character, xpOrb)
+local function GrabXp(character, xpOrb, player, playerStats)
 	-- print("xpOrb Found")
 	if not xpOrb.Parent then
 		return
@@ -75,7 +87,7 @@ local function GrabXp(character, xpOrb)
 		RunService.Heartbeat:Wait()
 	end
 
-	GetXp(xpOrb)
+	GetXp(xpOrb, player, playerStats)
 end
 
 local function XpGrabRange()
@@ -88,14 +100,15 @@ local function XpGrabRange()
 
 	for _, player in pairs(game.Players:GetChildren()) do
 		-- print(player.Name)
+		local playerStats = PlayersStats[player.UserId]
 		local character = player.Character or player.CharacterAdded:Wait()
 		local position = character.HumanoidRootPart.CFrame.Position
-		local range = PlayersStats[player.UserId].finalPickupRange
+		local range = playerStats.finalPickupRange
 
 		-- Gears.DisplayHitBox(position, range, 0.1)
 		local xpOrbs = workspace:GetPartBoundsInRadius(position, range, xpPickupParam)
 		for _, xpOrb in ipairs(xpOrbs) do
-			GrabXp(character, xpOrb)
+			GrabXp(character, xpOrb, player, playerStats)
 		end
 	end
 end
@@ -118,33 +131,13 @@ Players.PlayerAdded:Connect(function(player)
 	EquipDefaultWeapon(player)
 
 	-- TODO : At the end of the Game
-	local kills = leaderstats:WaitForChild("Kills")
-	-- kills.Changed:Connect(function()
-	-- 	DataStoreService:SetAsync(player.UserId, kills.Value)
+	-- local killsData = leaderstats:WaitForChild("KillsData")
+	-- killsData.Changed:Connect(function()
+	-- 	KillsData:SetAsync(player.UserId, killsData.Value)
 	-- end)
+
+	-- Find max Kills & Destruction Value
+	-- use pcall
 end)
 
-local para = workspace.Para
-local circle = workspace.Circle
-local sphere = workspace.Sphere
-
-RunService.Heartbeat:Connect(function()
-	local progress1 = 0
-	local progress2 = 0
-	local lat = 0
-	local long = 0
-
-	para.CFrame = Gears.ParabolaPos(Vector3.new(0, 0, -50), Vector3.new(10, 0, -50), 5, progress1)
-
-	local circlePos = Gears.CirclePos(Vector3.new(15, 5, -50), 5, progress2)
-	print(circlePos.x)
-	circle.CFrame = CFrame.new(Vector3.new(15, circlePos.x, circlePos.y))
-
-	sphere.CFrame = CFrame.new(Gears.SpherePos(Vector3.new(30, 5, -50), lat, long, 5))
-
-	local maxRad = math.pi * 2
-	progress1 = (progress1 + 0.01) % 1
-	progress2 = (progress2 + 0.01) % maxRad
-	lat = (lat + 0.01) % maxRad
-	long = (long + 0.05) % maxRad
-end)
+Gears.StartStage()
