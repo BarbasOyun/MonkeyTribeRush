@@ -7,45 +7,84 @@ local DataStoreService = game:GetService("DataStoreService")
 local KillsData = DataStoreService:GetOrderedDataStore("Wins")
 local BananasData = DataStoreService:GetDataStore("Bananas")
 
-local Gizmo = require(ReplicatedStorage.Shared.gizmo)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 
 local gears = {}
 
 local weaponHitFolder = workspace.WeaponHit
+local mapLimits = { X = Vector2.new(-300, 300), Z = Vector2.new(-200, 200) }
 
 -- Prefabs
 local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb
 local banana = ReplicatedStorage.Prefabs.Banana
 local enemy = ReplicatedStorage.Prefabs.Robot
 
-function gears.DisplayHitBox(cFrame, range, transparency)
-	local drawSphere = RunService.Heartbeat:Connect(function()
-		--print("Draw Sphere Gizmo")
-		Gizmo.setColor("Bright red")
-		Gizmo.setTransparency(transparency)
-		Gizmo.drawSphere(cFrame, range)
-		Gizmo.reset()
+function gears.ExecuteFor(duration, lambda)
+	local execute = RunService.Heartbeat:Connect(function()
+		lambda()
 	end)
 
-	task.delay(0.5, function()
-		drawSphere:Disconnect()
+	task.delay(duration, function()
+		execute:Disconnect()
 	end)
 end
 
-function gears.DrawRay(startPos, endPos)
-	Gizmo.drawRay(startPos, endPos)
+function gears.drawSphere(position, radius, color)
+	local adorn = Instance.new("SphereHandleAdornment")
+	adorn.Radius = radius
+	adorn.Color3 = color or Color3.new(0.5, 0, 0)
+	adorn.Transparency = 0.5
+	adorn.Adornee = workspace.Terrain -- Must be attached to something
+	adorn.CFrame = CFrame.new(position)
+	adorn.AlwaysOnTop = true
+	adorn.Parent = workspace.Terrain
 
-	local drawRay = RunService.Heartbeat:Connect(function()
-		Gizmo.setColor("Bright red")
-		Gizmo.setTransparency(0.5)
-		Gizmo.drawRay(startPos, endPos)
-		Gizmo.reset()
-	end)
+	game.Debris:AddItem(adorn, 0.01)
+end
 
-	task.delay(0.5, function()
-		drawRay:Disconnect()
-	end)
+function gears.DrawEdge(startPos, endPos, color)
+	local adorn = Instance.new("LineHandleAdornment")
+	adorn.Length = (endPos - startPos).Magnitude
+	adorn.Color3 = color or Color3.new(0, 1, 0)
+	adorn.Thickness = 20
+	adorn.Adornee = workspace.Terrain
+	-- Position it at origin and point it toward the direction
+	adorn.CFrame = CFrame.lookAt(startPos, endPos)
+	adorn.AlwaysOnTop = true
+	adorn.Parent = workspace.Terrain
+
+	game.Debris:AddItem(adorn, 0.01)
+end
+
+function gears.drawRay(origin, direction, color)
+	gears.DrawEdge(origin, origin + direction, color)
+end
+
+function gears.CirclePoints(radius, division) -- TODO : Add Progress
+	local points = {}
+	local pointDistance = (math.pi * 2) / division
+
+	for i = 0, (division - 1), 1 do
+		table.insert(points, gears.CirclePos(radius, pointDistance * i))
+	end
+
+	return points
+end
+
+function gears.DrawCircle(basePos, circlePoints)
+	local function DrawEdge(point1, point2)
+		local startPos = basePos + Vector3.new(point1.X, 0, point1.Y)
+		local endPos = basePos + Vector3.new(point2.X, 0, point2.Y)
+		gears.DrawEdge(startPos, endPos)
+	end
+
+	-- Draw Edges
+	for index = 1, #circlePoints - 1, 1 do
+		DrawEdge(circlePoints[index], circlePoints[index + 1])
+	end
+
+	-- Draw Last Edges : Last Point -> First
+	DrawEdge(circlePoints[#circlePoints], circlePoints[1])
 end
 
 function gears.FloatRandom(minNbr, maxNbr)
@@ -133,7 +172,9 @@ end
 function gears.SpawnEnemy(spawnPosition)
 	local newEnemy = enemy:Clone()
 	newEnemy.Parent = weaponHitFolder
-	newEnemy.PrimaryPart.CFrame = CFrame.new(spawnPosition)
+	local xPos = math.clamp(spawnPosition.X, mapLimits.X.X, mapLimits.X.Y)
+	local zPos = math.clamp(spawnPosition.Z, mapLimits.Z.X, mapLimits.Z.Y)
+	newEnemy.PrimaryPart.CFrame = CFrame.new(Vector3.new(xPos, spawnPosition.Y, zPos))
 	ServerEvents.EnemySpawned:Fire(newEnemy)
 end
 

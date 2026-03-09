@@ -120,7 +120,7 @@ local function SetupEnemy(enemy)
 
 	enemy.Humanoid.Died:Connect(function()
 		Gears.SpawnXP(enemy.PrimaryPart.Position)
-		task.wait(2)
+		-- task.wait(2)
 		enemy:Destroy()
 	end)
 end

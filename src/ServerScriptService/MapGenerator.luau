@@ -1,10 +1,13 @@
 local ServerScriptService = game:GetService("ServerScriptService")
+local RunService = game:GetService("RunService")
 local Gears = require(ServerScriptService.Server.Gears)
 
 local mapGenerator = {}
-local buildings = {}
+local buildings = { prefabName = "" } -- Nbr of Parts
+local maps = {} -- MilitaryBase, Research Lab
 
 -- Stage
+local MINIMUM_RADIUS = 40
 local weaponHitFolder = workspace.WeaponHit
 local totalBuildings = 0
 local buildingCount = 0
@@ -58,7 +61,7 @@ end
 
 function mapGenerator.CreateNode(nodesPos, nodesRadius, nodePos)
 	local adjustedPos = nodePos
-	local radius = math.random(60, 120) -- TODO : Building Based
+	local radius = math.random(10, 20) -- TODO : Building Based
 
 	local overlappingNodes = mapGenerator.FindOverlappingNodes(nodesPos, nodesRadius, adjustedPos, radius)
 	local count = 0
@@ -76,8 +79,9 @@ function mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
 	local nodesPos = {}
 	local nodesRadius = {}
 
+	-- Generate Nodes
 	for _ = 0, nodeNbr, 1 do
-		local rngRadius = Gears.FloatRandom(0, stageRadiusSize)
+		local rngRadius = Gears.FloatRandom(MINIMUM_RADIUS, stageRadiusSize)
 		local rngProgress = Gears.FloatRandom(0, math.pi * 2)
 		local nodePos = Gears.CirclePos(rngRadius, rngProgress)
 
@@ -86,16 +90,27 @@ function mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
 		table.insert(nodesRadius, radius)
 	end
 
-	return nodesPos
+	return nodesPos, nodesRadius
 end
 
 function mapGenerator.GenerateMap(nodeNbr, stageRadiusSize)
-	local nodesPos = mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
+	local nodesPos, nodesRadius = mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
+
+	RunService.Heartbeat:Connect(function()
+		Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(stageRadiusSize, 20))
+		Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(MINIMUM_RADIUS, 20)) -- Minimum Radius
+	end)
 
 	for i in nodesPos do
 		local building = Instance.new("Part")
-		building.Parent = workspace
-		building.Position = nodesPos[i]
+		building.Color = Color3.new(1, 0, 0)
+		building.Position = Vector3.new(nodesPos[i].X, 0, nodesPos[i].Y)
+		building.Anchored = true
+		building.Parent = weaponHitFolder
+
+		RunService.Heartbeat:Connect(function()
+			Gears.DrawCircle(Vector3.new(0, 3, 0) + building.Position, Gears.CirclePoints(nodesRadius[i], 20))
+		end)
 	end
 end
 
@@ -130,7 +145,7 @@ function mapGenerator.IncrementBuilding()
 end
 
 function mapGenerator.StartStage()
-	mapGenerator.GenerateMap(5, 100)
+	mapGenerator.GenerateMap(5, 160)
 
 	-- Stage Events
 	maxEvents = math.random(2, 5)

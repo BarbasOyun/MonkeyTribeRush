@@ -99,7 +99,9 @@ end
 
 local function HitDetection(player, playerStat, weaponInfo, finalDamage)
 	local attackPosition = weaponInfo.attackPoint.WorldCFrame
-	Gears.DisplayHitBox(attackPosition, weaponInfo.range, 0.3)
+	Gears.ExecuteFor(0.5, function()
+		Gears.drawSphere(attackPosition.Position, weaponInfo.range)
+	end)
 	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
 	local humanoidsHit = {}
 
