@@ -92,6 +92,7 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	xpBarMax.Value = 50
 	playerStat.levelUpXp = xpBarMax
 
+	-- TODO Remove
 	local bananas = Instance.new("IntValue")
 	bananas.Parent = uiInfos
 	bananas.Name = "Bananas"
@@ -203,7 +204,7 @@ function playersStats.RollAugments(luck)
 
 	local function GetAugment()
 		local function FindRarity()
-			local totalWeight = Gears.sumTable(weights)
+			local totalWeight = Gears.SumTable(weights)
 			local roll = math.random(0, totalWeight)
 			local count = 1
 			local currentCheck = weights[1]

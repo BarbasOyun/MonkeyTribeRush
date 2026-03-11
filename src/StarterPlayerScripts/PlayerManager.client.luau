@@ -15,13 +15,14 @@ local storedWaitLevels = 0
 local levelUpEvent = Events.LevelUp
 local rerollEvent = Events.Reroll
 local augmentPick = Events.AugmentPick
+local stageProgress = Events.StageProgress
 
 -- UI
 --local playerGui = player:WaitForChild("PlayerGui")
 local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
-local xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
+local xpBarCurrent = uiInfos.XpBarCurrent
 local xpBarMax = uiInfos:WaitForChild("XpBarMax")
 
 -- Main UI
@@ -32,7 +33,10 @@ local levelUpButton = mainGui:WaitForChild("Lvl+Button")
 local xpBarBg = mainGui:WaitForChild("XpBarBG")
 local xpBar = xpBarBg:WaitForChild("XpBar")
 local xpBarText = xpBarBg:WaitForChild("XpBarText")
-local xpBarUpdater = nil
+
+local barUpdaters = {}
+
+local stageProgressBar = mainGui.StageProgressBG.StageProgressBar
 
 local bananas = uiInfos:WaitForChild("Bananas")
 local bananaText = mainGui:WaitForChild("BananaNbrText")
@@ -132,26 +136,36 @@ local function ChooseCard(choiceNbr)
 	cardGui.Enabled = false
 end
 
-local function UpdateXpBar()
-	if xpBarUpdater then
-		xpBarUpdater:Disconnect()
+local function UpdateBar(bar, progress)
+	local barUpdater = barUpdaters[bar]
+
+	local Disconnect = function()
+		if barUpdater then
+			barUpdater:Disconnect()
+			barUpdaters[bar] = nil
+		end
 	end
 
-	-- print("Update XP Bar : " .. xpBarCurrent.Value .. " / " .. xpBarMax.Value)
+	Disconnect()
 
-	xpBarUpdater = RunService.Heartbeat:Connect(function(dT)
-		local targetSize = UDim2.fromScale(xpBarCurrent.Value / xpBarMax.Value, 1)
-		xpBar.Size = xpBar.Size:Lerp(targetSize, 5 * dT)
-		xpBarText.Text = xpBarCurrent.Value .. " / " .. xpBarMax.Value
+	-- print("Update " .. bar .. " -> " .. progress)
+	local targetSize = UDim2.fromScale(progress, 1)
 
-		if xpBar.Size.X.Scale >= 0.99 then
-			xpBar.Size = targetSize
-			if not xpBarUpdater then
-				return
-			end
-			xpBarUpdater:Disconnect()
+	barUpdater = RunService.Heartbeat:Connect(function(dT)
+		bar.Size = bar.Size:Lerp(targetSize, 5 * dT) -- 5 = Speed
+
+		if bar.Size.X.Scale >= 0.99 then
+			bar.Size = targetSize
+			Disconnect()
 		end
 	end)
+
+	barUpdaters[bar] = barUpdater
+end
+
+local function UpdateXpBar()
+	xpBarText.Text = xpBarCurrent.Value .. " / " .. xpBarMax.Value
+	UpdateBar(xpBar, xpBarCurrent.Value / xpBarMax.Value)
 end
 
 local function InitUi()
@@ -177,6 +191,13 @@ end
 
 -- Respawn
 local function onCharacterAdded(character)
+	print("Character Added")
+	local humanoid = character:WaitForChild("Humanoid")
+
+	-- Disable Fall
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+
 	-- Re-fetch UI elements on respawn
 	uiInfos = player:WaitForChild("UIInfos")
 	xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
@@ -230,6 +251,10 @@ augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 
 Events.XpPickup.OnClientEvent:Connect(function()
 	getXPSound:Play()
+end)
+
+stageProgress.OnClientEvent:Connect(function(progress)
+	UpdateBar(stageProgressBar, progress)
 end)
 
 InitUi()

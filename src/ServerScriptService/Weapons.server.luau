@@ -21,7 +21,7 @@ local expectingAttack = {}
 local weaponHitParam = OverlapParams.new()
 weaponHitParam.FilterType = Enum.RaycastFilterType.Include
 weaponHitParam.FilterDescendantsInstances = { workspace.WeaponHit }
-weaponHitParam.MaxParts = 50
+weaponHitParam.MaxParts = 100
 
 -- Buildings
 local buildingsHealth = {}
@@ -99,8 +99,9 @@ end
 
 local function HitDetection(player, playerStat, weaponInfo, finalDamage)
 	local attackPosition = weaponInfo.attackPoint.WorldCFrame
+	-- DEBUG
 	Gears.ExecuteFor(0.5, function()
-		Gears.drawSphere(attackPosition.Position, weaponInfo.range)
+		Gears.DrawSphere(attackPosition.Position, weaponInfo.range)
 	end)
 	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
 	local humanoidsHit = {}
@@ -205,7 +206,7 @@ attackHitEvent.OnServerEvent:Connect(WeaponDamage)
 local function OnEquipped(weapon, weaponInfo)
 	local character = weapon.Parent
 	local player = Players:GetPlayerFromCharacter(character)
-	print(weapon.Name .. " Equipped by player: " .. player.Name)
+	-- print(weapon.Name .. " Equipped by player: " .. player.Name)
 
 	local playerStat = PlayersStats[player.UserId]
 	playerStat.weaponInfo = weaponInfo
@@ -226,7 +227,7 @@ local function OnUnequipped(weapon)
 		return
 	end
 
-	print(weapon.Name .. " Unequipped by player: " .. player.Name)
+	-- print(weapon.Name .. " Unequipped by player: " .. player.Name)
 
 	local playerStats = PlayersStats[player.UserId]
 	playerStats.weaponInfo = nil

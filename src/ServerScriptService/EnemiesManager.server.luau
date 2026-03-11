@@ -1,7 +1,7 @@
 local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+-- local RunService = game:GetService("RunService")
 
 local Gears = require(ServerScriptService.Server.Gears)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
@@ -126,7 +126,7 @@ local function SetupEnemy(enemy)
 end
 
 ServerEvents.EnemySpawned.Event:Connect(function(enemy)
-	print("Enemy Spawned : " .. enemy.Name)
+	-- print("Enemy Spawned : " .. enemy.Name)
 	-- table.insert(enemies, enemy)
 	SetupEnemy(enemy)
 end)

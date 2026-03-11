@@ -16,4 +16,5 @@ return {
 	Reroll = createRemoteEvent("Reroll"),
 	AugmentPick = createRemoteEvent("AugmentPick"),
 	XpPickup = createRemoteEvent("XpPickup"),
+	StageProgress = createRemoteEvent("StageProgress"),
 }

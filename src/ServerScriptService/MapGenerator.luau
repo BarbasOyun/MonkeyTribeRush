@@ -1,16 +1,38 @@
 local ServerScriptService = game:GetService("ServerScriptService")
-local RunService = game:GetService("RunService")
+-- local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Gears = require(ServerScriptService.Server.Gears)
+local Events = ReplicatedStorage.Shared
 
 local mapGenerator = {}
-local buildings = { prefabName = "" } -- Nbr of Parts
-local maps = {} -- MilitaryBase, Research Lab
+
+local weaponHitFolder = workspace.WeaponHit
+
+-- Buildings Data
+-- TODO : Move to file
+local militaryBase = { prefab = ReplicatedStorage.Prefabs.MilitaryBase, nbrOfParts = 1110, radius = 55 }
+local militaryCamp = { prefab = ReplicatedStorage.Prefabs.MilitaryCamp, nbrOfParts = 912, radius = 60 }
+local militaryCanvas = { prefab = ReplicatedStorage.Prefabs.MilitaryCanvas, nbrOfParts = 336, radius = 40 }
+local smallCamp = { prefab = ReplicatedStorage.Prefabs.SmallCamp, nbrOfParts = 1806, radius = 35 }
+local sniperTower = { prefab = ReplicatedStorage.Prefabs.SniperTower, nbrOfParts = 139, radius = 20 }
+local woodCrates = { prefab = ReplicatedStorage.Prefabs.WoodCrates, nbrOfParts = 76, radius = 15 }
+
+local reactor = { prefab = ReplicatedStorage.Prefabs.Reactor, nbrOfParts = 1230, radius = 55 }
+local galileoLaboratorty = { prefab = ReplicatedStorage.Prefabs.GalileoLaboratorty, nbrOfParts = 38, radius = 20 }
+local alchemyLab = { prefab = ReplicatedStorage.Prefabs.AlchemyLab, nbrOfParts = 175, radius = 30 }
+local labRoom = { prefab = ReplicatedStorage.Prefabs.LabRoom, nbrOfParts = 129, radius = 45 }
+local labBattery = { prefab = ReplicatedStorage.Prefabs.LabBattery, nbrOfParts = 25, radius = 15 }
+
+local militaryMap = { militaryBase, militaryCamp, militaryCanvas, smallCamp, sniperTower, woodCrates }
+local researchLabMap = { reactor, galileoLaboratorty, alchemyLab, labRoom, labBattery }
+local maps = { militaryMap, researchLabMap }
 
 -- Stage
 local MINIMUM_RADIUS = 40
-local weaponHitFolder = workspace.WeaponHit
-local totalBuildings = 0
-local buildingCount = 0
+-- local CIRCLE_DIVISION = 20
+
+local totalParts = 0
+local partsCount = 0
 
 local maxStage = 1 -- TODO : Roll
 local currentStage = 0
@@ -19,12 +41,12 @@ local maxEvents = 0
 local currentEvent = 0
 local stageEvents = {}
 
-function mapGenerator.FindOverlappingNodes(nodesPos, nodesRadius, startPos, radius)
+function mapGenerator.FindOverlappingNodes(nodesPos, nodesBuilding, startPos, radius)
 	local overlappingNodes = {}
 
 	for i = 1, #nodesPos - 1, 1 do
 		local distance = Gears.PointsDistance(startPos, nodesPos[i])
-		local minDistance = radius + nodesRadius[i]
+		local minDistance = radius + nodesBuilding[i].radius
 
 		if distance < minDistance then
 			-- table.insert(overlappingNodes, distance)
@@ -56,67 +78,85 @@ function mapGenerator.AdjustNodePos(startPos, overlappingNodes, radius)
 		end
 	end
 
+	local adjustedPos = startPos + Gears.NormalizeOrZero(adjustDirection) * adjustDistance
+
+	local minimumDistance = radius + MINIMUM_RADIUS
+	local distanceCenter = Gears.PointsDistance(Vector2.zero, adjustedPos) -- Vector2.zero = Center of the Map
+
+	if distanceCenter < minimumDistance then
+		adjustDirection = adjustedPos - Vector2.zero
+		adjustDistance = minimumDistance - distanceCenter
+		adjustedPos = adjustedPos + Gears.NormalizeOrZero(adjustDirection) * adjustDistance
+	end
+
 	return startPos + Gears.NormalizeOrZero(adjustDirection) * adjustDistance
 end
 
-function mapGenerator.CreateNode(nodesPos, nodesRadius, nodePos)
+function mapGenerator.CreateNode(nodesPos, nodesBuilding, nodePos, building)
 	local adjustedPos = nodePos
-	local radius = math.random(10, 20) -- TODO : Building Based
 
-	local overlappingNodes = mapGenerator.FindOverlappingNodes(nodesPos, nodesRadius, adjustedPos, radius)
+	local overlappingNodes = mapGenerator.FindOverlappingNodes(nodesPos, nodesBuilding, adjustedPos, building.radius)
 	local count = 0
 
 	while count < 3 and #overlappingNodes > 0 do
-		adjustedPos = mapGenerator.AdjustNodePos(adjustedPos, overlappingNodes, radius)
-		overlappingNodes = mapGenerator.FindOverlappingNodes(nodesPos, nodesRadius, adjustedPos, radius)
+		adjustedPos = mapGenerator.AdjustNodePos(adjustedPos, overlappingNodes, building.radius)
+		overlappingNodes = mapGenerator.FindOverlappingNodes(nodesPos, nodesBuilding, adjustedPos, building.radius)
 		count += 1
 	end
 
-	return adjustedPos, radius
+	return adjustedPos
 end
 
-function mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
-	local nodesPos = {}
-	local nodesRadius = {}
+function mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTable)
+	local buildingsPos = {}
+	local nodesBuilding = {}
+	local buildingIndex = 1
 
-	-- Generate Nodes
-	for _ = 0, nodeNbr, 1 do
+	-- Generate Buildings
+	for _ = 0, buildingNbr, 1 do
+		-- Choose Building
+		local building = buildingTable[buildingIndex]
+		buildingIndex = Gears.LoopValue(buildingIndex + 1, #buildingTable, 1)
+		totalParts += building.nbrOfParts
+
+		-- Building Position
 		local rngRadius = Gears.FloatRandom(MINIMUM_RADIUS, stageRadiusSize)
 		local rngProgress = Gears.FloatRandom(0, math.pi * 2)
-		local nodePos = Gears.CirclePos(rngRadius, rngProgress)
+		local buildingPos = Gears.CirclePos(rngRadius, rngProgress)
 
-		local adjustedPos, radius = mapGenerator.CreateNode(nodesPos, nodesRadius, nodePos)
-		table.insert(nodesPos, adjustedPos)
-		table.insert(nodesRadius, radius)
+		local adjustedPos = mapGenerator.CreateNode(buildingsPos, nodesBuilding, buildingPos, building)
+		table.insert(buildingsPos, adjustedPos)
+		table.insert(nodesBuilding, building)
 	end
 
-	return nodesPos, nodesRadius
+	return buildingsPos, nodesBuilding
 end
 
-function mapGenerator.GenerateMap(nodeNbr, stageRadiusSize)
-	local nodesPos, nodesRadius = mapGenerator.GenerateMapData(nodeNbr, stageRadiusSize)
+function mapGenerator.GenerateMap(buildingNbr, stageRadiusSize, buildingTable)
+	local nodesPos, nodesBuilding = mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTable)
 
-	RunService.Heartbeat:Connect(function()
-		Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(stageRadiusSize, 20))
-		Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(MINIMUM_RADIUS, 20)) -- Minimum Radius
-	end)
+	-- DEBUG
+	-- RunService.Heartbeat:Connect(function()
+	-- 	Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(stageRadiusSize, CIRCLE_DIVISION))
+	-- 	Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(MINIMUM_RADIUS, CIRCLE_DIVISION)) -- Min Radius
+	-- end)
 
 	for i in nodesPos do
-		local building = Instance.new("Part")
-		building.Color = Color3.new(1, 0, 0)
-		building.Position = Vector3.new(nodesPos[i].X, 0, nodesPos[i].Y)
-		building.Anchored = true
+		local building = nodesBuilding[i].prefab:clone()
+		building:PivotTo(CFrame.new(nodesPos[i].X, building:GetPivot().Position.Y, nodesPos[i].Y))
 		building.Parent = weaponHitFolder
 
-		RunService.Heartbeat:Connect(function()
-			Gears.DrawCircle(Vector3.new(0, 3, 0) + building.Position, Gears.CirclePoints(nodesRadius[i], 20))
-		end)
+		-- DEBUG
+		-- RunService.Heartbeat:Connect(function()
+		-- 	Gears.DrawCircle(building:GetPivot().Position, Gears.CirclePoints(nodesBuilding[i].radius, CIRCLE_DIVISION))
+		-- end)
 	end
 end
 
 function mapGenerator.IncrementBuilding()
-	buildingCount += 1
-	local stageProgress = buildingCount / totalBuildings
+	partsCount += 1
+	local stageProgress = partsCount / totalParts
+	Events.StageProgress:FireAllClients(stageProgress)
 	-- print("Current Stage Progress : " .. stageProgress)
 
 	-- Check Stage Events
@@ -126,7 +166,7 @@ function mapGenerator.IncrementBuilding()
 		print(stageEvents[currentEvent])
 	end
 
-	if stageProgress >= 0.9 then
+	if stageProgress >= 0.8 then
 		print("Stage Finished")
 		currentStage += 1
 
@@ -145,7 +185,8 @@ function mapGenerator.IncrementBuilding()
 end
 
 function mapGenerator.StartStage()
-	mapGenerator.GenerateMap(5, 160)
+	local map = maps[math.random(1, #maps)]
+	mapGenerator.GenerateMap(5, 200, map)
 
 	-- Stage Events
 	maxEvents = math.random(2, 5)
@@ -153,15 +194,6 @@ function mapGenerator.StartStage()
 	for i = 0, maxEvents do
 		table.insert(stageEvents, eventsEnum.SWARM)
 		-- print("Stage Event " .. i .. " : " .. eventsEnum.SWARM)
-	end
-
-	-- Calculate Max Building
-	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
-		if object:IsA("BasePart") then
-			-- This code runs for every part, even in sub-models
-			-- print(object.Name)
-			totalBuildings += 1
-		end
 	end
 end
 

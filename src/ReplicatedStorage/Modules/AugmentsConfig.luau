@@ -78,9 +78,9 @@ return {
 		Legendary = 11,
 	},
 	["mobility"] = {
-		Rare = 3,
-		Epic = 5,
-		Legendary = 7,
+		Rare = 2,
+		Epic = 4,
+		Legendary = 6,
 	},
 	["luck"] = {
 		Rare = 5,

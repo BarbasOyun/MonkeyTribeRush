@@ -69,7 +69,7 @@ local function GrabXp(character, xpOrb, player, playerStats)
 	-- Lerp XP
 	local startPos = xpOrb.CFrame
 
-	local steps = 60
+	local steps = 30
 	local progress = 0
 	local speed = 1 / steps / 4
 	local acceleration = (1 / steps - speed) / (steps / 2)
@@ -110,7 +110,7 @@ end
 RunService.Heartbeat:Connect(XpGrabRange)
 
 Players.PlayerAdded:Connect(function(player)
-	print(player.Name .. " has joined the game!")
+	print(player.Name .. " has joined the game")
 
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Parent = player

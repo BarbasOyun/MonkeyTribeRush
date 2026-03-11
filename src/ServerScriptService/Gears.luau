@@ -29,7 +29,7 @@ function gears.ExecuteFor(duration, lambda)
 	end)
 end
 
-function gears.drawSphere(position, radius, color)
+function gears.DrawSphere(position, radius, color)
 	local adorn = Instance.new("SphereHandleAdornment")
 	adorn.Radius = radius
 	adorn.Color3 = color or Color3.new(0.5, 0, 0)
@@ -56,7 +56,7 @@ function gears.DrawEdge(startPos, endPos, color)
 	game.Debris:AddItem(adorn, 0.01)
 end
 
-function gears.drawRay(origin, direction, color)
+function gears.DrawRay(origin, direction, color)
 	gears.DrawEdge(origin, origin + direction, color)
 end
 
@@ -101,6 +101,22 @@ function gears.NormalizeOrZero(vector2)
 	end
 
 	return vector2.Unit
+end
+
+function gears.LoopValue(value, max, resetValue) -- TODO : Add min
+	local resetValue2 = resetValue or 0
+
+	if value > max then
+		value = resetValue2
+	end
+
+	return value
+end
+
+function gears.Sigmoid(x, slop, length)
+	local useSlop = slop or 1
+	local useLength = length or 1
+	return useLength / (useLength + math.exp(useSlop * x))
 end
 
 function gears.ParabolaPos(startPos, endPos, height, progress)
@@ -178,6 +194,20 @@ function gears.SpawnEnemy(spawnPosition)
 	ServerEvents.EnemySpawned:Fire(newEnemy)
 end
 
+function gears.GetPartCount(parentObject)
+	local count = 0
+
+	-- GetDescendants() looks through every single layer of the hierarchy
+	for _, object in ipairs(parentObject:GetDescendants()) do
+		-- BasePart covers Parts, MeshParts, Wedges, Trusses, etc.
+		if object:IsA("BasePart") then
+			count += 1
+		end
+	end
+
+	return count
+end
+
 function gears.SaveData()
 	-- Save Data : Kills, Destruction, Bananas -> use pcall
 	-- Cap Data to max
@@ -189,7 +219,7 @@ function gears.SaveData()
 	end
 end
 
-function gears.sumTable(t)
+function gears.SumTable(t)
 	local total = 0
 	for i = 1, #t do
 		total += t[i]
