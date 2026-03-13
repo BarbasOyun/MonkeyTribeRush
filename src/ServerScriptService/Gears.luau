@@ -12,7 +12,7 @@ local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 local gears = {}
 
 local weaponHitFolder = workspace.WeaponHit
-local mapLimits = { X = Vector2.new(-300, 300), Z = Vector2.new(-200, 200) }
+local mapLimits = { X = Vector2.new(-290, 290), Z = Vector2.new(-190, 190) } -- Real Values = X = Vector2.new(-300, 300), Z = Vector2.new(-200, 200)
 
 -- Prefabs
 local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb

@@ -39,7 +39,7 @@ local xpBarText = xpBarBg.XpBarText
 
 -- Stage
 local stageProgressBar = mainGui.StageProgressBG.StageProgressBar
-local nextStageTimer = mainGui.NextStageTimerTick
+local nextStageTimer = mainGui.NextStageTimer
 -- local currentStageText = mainGui.StageProgressBG.StageNbr
 local bananaText = mainGui.BananaNbrText
 
@@ -262,9 +262,18 @@ Events.XpPickup.OnClientEvent:Connect(function()
 	getXPSound:Play()
 end)
 
--- Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
--- 	currentStageText.Text = currentStage .. " / 5"
--- end)
+Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
+	-- currentStageText.Text = currentStage .. " / 5"
+	nextStageTimer.Visible = true
+end)
+
+Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
+	nextStageTimer.Text = "Next Stage In : " .. currentTimer .. "s"
+
+	if currentTimer == 0 then
+		nextStageTimer.Visible = false
+	end
+end)
 
 stageProgress.OnClientEvent:Connect(function(progress)
 	UpdateBar(stageProgressBar, progress)

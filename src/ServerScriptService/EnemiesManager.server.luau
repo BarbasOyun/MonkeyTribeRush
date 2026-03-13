@@ -1,12 +1,13 @@
-local PathfindingService = game:GetService("PathfindingService")
-local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PathfindingService = game:GetService("PathfindingService")
 -- local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 local Gears = require(ServerScriptService.Server.Gears)
-local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
+local ServerEvents = require(ServerScriptService.Server.ServerEvents)
+local Events = ReplicatedStorage.Shared
 
 local MAX_ENEMIES = 200
 local enemies = {}
@@ -155,6 +156,10 @@ ServerEvents.EnemySpawned.Event:Connect(function(enemy)
 	-- print("Enemy Spawned : " .. enemy.Name)
 	-- table.insert(enemies, enemy)
 	SetupEnemy(enemy)
+end)
+
+ServerEvents.StageChanged.OnServerEvent:Connect(function()
+	table.clear(enemies)
 end)
 
 --RunAtPlayer()

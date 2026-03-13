@@ -13,6 +13,10 @@ local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local Events = ReplicatedStorage.Shared
 
+-- Players
+local MAX_SPEED = 100
+local MAX_DISTANCE = 200
+
 local bananaCount = 0
 
 local xpFrame = 5 -- Gather xp Every X Frame
@@ -124,6 +128,28 @@ Players.PlayerAdded:Connect(function(player)
 	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
 
 	EquipDefaultWeapon(player)
+
+	local character = player.Character
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	RunService.Heartbeat:Connect(function()
+		-- Limit Velocity
+		-- if root then
+		-- 	local velocity = root.AssemblyLinearVelocity
+		-- 	if velocity.Magnitude > MAX_SPEED then
+		-- 		root.AssemblyLinearVelocity = velocity.Unit * MAX_SPEED
+		-- 	end
+		-- end
+
+		-- Limit Distance
+		local pos = root.Position
+		local flatPos = Vector2.new(pos.X, pos.Z) -- Check 2D distance
+
+		if flatPos.Magnitude > MAX_DISTANCE then -- TODO : Squared Magnitude
+			character:PivotTo(CFrame.new(Vector3.zero))
+			root.AssemblyLinearVelocity = Vector3.zero -- Kill the momentum
+		end
+	end)
 
 	-- TODO : At the end of the Game
 	-- local killsData = leaderstats:WaitForChild("KillsData")

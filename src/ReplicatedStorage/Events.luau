@@ -18,5 +18,6 @@ return {
 	XpPickup = createRemoteEvent("XpPickup"),
 	BananaPickup = createRemoteEvent("BananaPickup"),
 	StageProgress = createRemoteEvent("StageProgress"),
+	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),
 	NextStageTimerTick = createRemoteEvent("NextStageTimerTick"),
 }

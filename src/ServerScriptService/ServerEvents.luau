@@ -10,4 +10,5 @@ end
 
 return {
 	EnemySpawned = createServerEvent("EnemySpawned"),
+	StageChanged = createServerEvent("StageChanged"),
 }

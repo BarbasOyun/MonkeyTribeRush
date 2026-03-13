@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Gears = require(ServerScriptService.Server.Gears)
 local Events = ReplicatedStorage.Shared
+local ServerEvents = ServerScriptService.Server
 
 local mapGenerator = {}
 
@@ -14,11 +15,11 @@ local weaponHitFolder = workspace.WeaponHit
 local militaryBase = { prefab = ReplicatedStorage.Prefabs.MilitaryBase, nbrOfParts = 1110, radius = 55 }
 local militaryCamp = { prefab = ReplicatedStorage.Prefabs.MilitaryCamp, nbrOfParts = 912, radius = 60 }
 local militaryCanvas = { prefab = ReplicatedStorage.Prefabs.MilitaryCanvas, nbrOfParts = 336, radius = 40 }
-local smallCamp = { prefab = ReplicatedStorage.Prefabs.SmallCamp, nbrOfParts = 1806, radius = 35 }
+local smallCamp = { prefab = ReplicatedStorage.Prefabs.SmallCamp, nbrOfParts = 1000, radius = 35 } -- Real Nbr = 1806
 local sniperTower = { prefab = ReplicatedStorage.Prefabs.SniperTower, nbrOfParts = 139, radius = 20 }
 local woodCrates = { prefab = ReplicatedStorage.Prefabs.WoodCrates, nbrOfParts = 76, radius = 15 }
 
-local reactor = { prefab = ReplicatedStorage.Prefabs.Reactor, nbrOfParts = 1230, radius = 55 }
+local reactor = { prefab = ReplicatedStorage.Prefabs.Reactor, nbrOfParts = 700, radius = 55 } -- Real Nbr = 1230
 local galileoLaboratorty = { prefab = ReplicatedStorage.Prefabs.GalileoLaboratorty, nbrOfParts = 38, radius = 20 }
 local alchemyLab = { prefab = ReplicatedStorage.Prefabs.AlchemyLab, nbrOfParts = 175, radius = 30 }
 local labRoom = { prefab = ReplicatedStorage.Prefabs.LabRoom, nbrOfParts = 129, radius = 45 }
@@ -26,7 +27,12 @@ local labBattery = { prefab = ReplicatedStorage.Prefabs.LabBattery, nbrOfParts =
 
 local militaryMap = { militaryBase, militaryCamp, militaryCanvas, smallCamp, sniperTower, woodCrates }
 local researchLabMap = { reactor, galileoLaboratorty, alchemyLab, labRoom, labBattery }
+
 local maps = { militaryMap, researchLabMap }
+local mapsMusics = {
+	ReplicatedStorage.Prefabs.MilitaryMapMusic,
+	ReplicatedStorage.Prefabs.ResearchMapMusic,
+}
 
 -- Stage
 local MINIMUM_RADIUS = 40
@@ -34,6 +40,8 @@ local MINIMUM_RADIUS = 40
 local ADDITIONAL_BUILDINGS = 2
 local BUILDING_LIMIT = 10
 local isWaitingForNextStage = false
+
+local currentMusic = nil
 
 local totalParts = 0
 local partsCount = 0
@@ -113,7 +121,7 @@ function mapGenerator.CreateNode(nodesPos, nodesBuilding, nodePos, building)
 	return adjustedPos
 end
 
-function mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTable)
+function mapGenerator.GenerateMapData(stageRadiusSize, buildingTable, buildingNbr)
 	local buildingsPos = {}
 	local nodesBuilding = {}
 	local buildingIndex = math.random(1, 5)
@@ -140,8 +148,15 @@ function mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTabl
 	return buildingsPos, nodesBuilding
 end
 
-function mapGenerator.GenerateMap(buildingNbr, stageRadiusSize, buildingTable)
-	local nodesPos, nodesBuilding = mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTable)
+function mapGenerator.GenerateMap(stageRadiusSize, mapId, buildingNbr)
+	mapGenerator.ClearMap()
+
+	local buildingTable = maps[mapId]
+	local nodesPos, nodesBuilding = mapGenerator.GenerateMapData(stageRadiusSize, buildingTable, buildingNbr)
+
+	currentMusic = mapsMusics[mapId]:clone()
+	currentMusic.Playing = true
+	currentMusic.Parent = workspace
 
 	-- DEBUG
 	-- RunService.Heartbeat:Connect(function()
@@ -149,6 +164,7 @@ function mapGenerator.GenerateMap(buildingNbr, stageRadiusSize, buildingTable)
 	-- 	Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(MINIMUM_RADIUS, CIRCLE_DIVISION)) -- Min Radius
 	-- end)
 
+	-- Instantiate Buildings
 	for i in nodesPos do
 		local building = nodesBuilding[i].prefab:clone()
 		building:PivotTo(CFrame.new(nodesPos[i].X, building:GetPivot().Position.Y, nodesPos[i].Y))
@@ -178,14 +194,15 @@ function mapGenerator.FinishStage()
 	-- Countdown
 	print("10 sec until New Stage")
 	isWaitingForNextStage = true
+	Events.CurrentStageChanged:FireAllClients(currentStage)
+	ServerEvents.StageChanged:Fire()
 	local countDown = 10
 	for _ = 0, 10, 1 do
 		task.wait(1)
 		countDown -= 1
-		Events.NextStageTimerTick:FireAllClients()
+		Events.NextStageTimerTick:FireAllClients(countDown)
 	end
 
-	-- Events.CurrentStageChanged:FireAllClients(currentStage)
 	stageBuildingNbr = math.clamp(stageBuildingNbr + ADDITIONAL_BUILDINGS, 0, BUILDING_LIMIT)
 	totalParts = 0
 	partsCount = 0
@@ -219,19 +236,23 @@ function mapGenerator.ClearMap() -- Clear Building + Enenmies
 	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
 		object:Destroy()
 	end
+
+	if currentMusic then
+		currentMusic:Destroy()
+	end
 end
 
 function mapGenerator.StartStage()
 	isWaitingForNextStage = false
-	mapGenerator.ClearMap()
+	Events.StageProgress:FireAllClients(0)
 
+	-- Reset Players Positions
 	for _, player in ipairs(Players:GetPlayers()) do
 		player.Character:MoveTo(Vector3.zero)
 	end
 
-	local map = maps[math.random(1, #maps)]
-	mapGenerator.GenerateMap(stageBuildingNbr, 200, map)
-	Events.StageProgress:FireAllClients(0)
+	local mapId = math.random(1, #maps)
+	mapGenerator.GenerateMap(200, mapId, stageBuildingNbr)
 
 	-- Stage Events
 	maxEvents = math.random(2, 5)
