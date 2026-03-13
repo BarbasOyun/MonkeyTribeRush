@@ -13,9 +13,10 @@ local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local Events = ReplicatedStorage.Shared
 
--- Variables
+local bananaCount = 0
+
+local xpFrame = 5 -- Gather xp Every X Frame
 local frameCount = 0
-local targetFrame = 5
 
 -- XpGrabRange Parameters
 local xpPickupParam = OverlapParams.new()
@@ -40,20 +41,20 @@ local function EquipDefaultWeapon(player)
 	end
 end
 
-local function GetXp(xpOrb, player, playerStats)
+local function GetXp(xpOrb, player)
 	if xpOrb.Name == "SmallXpOrb" then
 		-- print("Add Small XP Orb")
 		PlayersStats.AddXp(10)
 	elseif xpOrb.Name == "Banana" then
-		-- print("Banana Collected")
-		playerStats.bananas.Value += 1
+		bananaCount += 1
+		Events.BananaPickup:FireAllClients(bananaCount)
 	end
 
 	Events.XpPickup:FireClient(player)
 	xpOrb:Destroy()
 end
 
-local function GrabXp(character, xpOrb, player, playerStats)
+local function GrabXp(character, xpOrb, player)
 	-- print("xpOrb Found")
 	if not xpOrb.Parent then
 		return
@@ -81,11 +82,11 @@ local function GrabXp(character, xpOrb, player, playerStats)
 		RunService.Heartbeat:Wait()
 	end
 
-	GetXp(xpOrb, player, playerStats)
+	GetXp(xpOrb, player)
 end
 
 local function XpGrabRange()
-	if frameCount < targetFrame then
+	if frameCount < xpFrame then
 		frameCount += 1
 		return
 	end
@@ -102,7 +103,7 @@ local function XpGrabRange()
 		-- Gears.DisplayHitBox(position, range, 0.1)
 		local xpOrbs = workspace:GetPartBoundsInRadius(position, range, xpPickupParam)
 		for _, xpOrb in ipairs(xpOrbs) do
-			GrabXp(character, xpOrb, player, playerStats)
+			GrabXp(character, xpOrb, player)
 		end
 	end
 end

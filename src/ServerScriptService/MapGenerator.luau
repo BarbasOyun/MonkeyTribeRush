@@ -1,6 +1,7 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 -- local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local Gears = require(ServerScriptService.Server.Gears)
 local Events = ReplicatedStorage.Shared
 
@@ -30,12 +31,17 @@ local maps = { militaryMap, researchLabMap }
 -- Stage
 local MINIMUM_RADIUS = 40
 -- local CIRCLE_DIVISION = 20
+local ADDITIONAL_BUILDINGS = 2
+local BUILDING_LIMIT = 10
+local isWaitingForNextStage = false
 
 local totalParts = 0
 local partsCount = 0
 
-local maxStage = 1 -- TODO : Roll
+local stageBuildingNbr = 3
+-- local maxStage = 5 -- TODO : Roll
 local currentStage = 0
+
 local eventsEnum = { SWARM = "SWARM" } -- TODO Add More Events
 local maxEvents = 0
 local currentEvent = 0
@@ -110,10 +116,10 @@ end
 function mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTable)
 	local buildingsPos = {}
 	local nodesBuilding = {}
-	local buildingIndex = 1
+	local buildingIndex = math.random(1, 5)
 
 	-- Generate Buildings
-	for _ = 0, buildingNbr, 1 do
+	for _ = 1, buildingNbr, 1 do
 		-- Choose Building
 		local building = buildingTable[buildingIndex]
 		buildingIndex = Gears.LoopValue(buildingIndex + 1, #buildingTable, 1)
@@ -128,6 +134,8 @@ function mapGenerator.GenerateMapData(buildingNbr, stageRadiusSize, buildingTabl
 		table.insert(buildingsPos, adjustedPos)
 		table.insert(nodesBuilding, building)
 	end
+
+	totalParts *= 0.5 -- Require 50% of the stage to be completed
 
 	return buildingsPos, nodesBuilding
 end
@@ -153,7 +161,42 @@ function mapGenerator.GenerateMap(buildingNbr, stageRadiusSize, buildingTable)
 	end
 end
 
+function mapGenerator.FinishStage()
+	print("Stage Finished")
+	currentStage += 1
+
+	task.spawn(function()
+		Gears.SaveData()
+	end)
+
+	-- if currentStage > maxStage then
+	-- 	print("Level Finished -> Going back to Hub")
+	-- 	-- Go Back to Hub
+	-- 	return
+	-- end
+
+	-- Countdown
+	print("10 sec until New Stage")
+	isWaitingForNextStage = true
+	local countDown = 10
+	for _ = 0, 10, 1 do
+		task.wait(1)
+		countDown -= 1
+		Events.NextStageTimerTick:FireAllClients()
+	end
+
+	-- Events.CurrentStageChanged:FireAllClients(currentStage)
+	stageBuildingNbr = math.clamp(stageBuildingNbr + ADDITIONAL_BUILDINGS, 0, BUILDING_LIMIT)
+	totalParts = 0
+	partsCount = 0
+	mapGenerator.StartStage()
+end
+
 function mapGenerator.IncrementBuilding()
+	if isWaitingForNextStage then
+		return
+	end
+
 	partsCount += 1
 	local stageProgress = partsCount / totalParts
 	Events.StageProgress:FireAllClients(stageProgress)
@@ -166,27 +209,29 @@ function mapGenerator.IncrementBuilding()
 		print(stageEvents[currentEvent])
 	end
 
-	if stageProgress >= 0.8 then
-		print("Stage Finished")
-		currentStage += 1
+	-- Stage Finished
+	if stageProgress >= 1 then
+		mapGenerator.FinishStage()
+	end
+end
 
-		task.spawn(function()
-			Gears.SaveData()
-		end)
-
-		if currentStage >= maxStage then
-			print("Level Finished")
-			-- Go Back to Hub
-			return
-		end
-
-		print("15 sec until New Stage")
+function mapGenerator.ClearMap() -- Clear Building + Enenmies
+	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
+		object:Destroy()
 	end
 end
 
 function mapGenerator.StartStage()
+	isWaitingForNextStage = false
+	mapGenerator.ClearMap()
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		player.Character:MoveTo(Vector3.zero)
+	end
+
 	local map = maps[math.random(1, #maps)]
-	mapGenerator.GenerateMap(5, 200, map)
+	mapGenerator.GenerateMap(stageBuildingNbr, 200, map)
+	Events.StageProgress:FireAllClients(0)
 
 	-- Stage Events
 	maxEvents = math.random(2, 5)

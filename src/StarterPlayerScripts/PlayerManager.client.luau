@@ -23,30 +23,31 @@ local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos.XpBarCurrent
-local xpBarMax = uiInfos:WaitForChild("XpBarMax")
+local xpBarMax = uiInfos.XpBarMax --:WaitForChild("XpBarMax")
 
 -- Main UI
 local mainGui = playerGui:WaitForChild("MainGui")
-local levelText = mainGui:WaitForChild("LevelText")
-local levelUpButton = mainGui:WaitForChild("Lvl+Button")
-
-local xpBarBg = mainGui:WaitForChild("XpBarBG")
-local xpBar = xpBarBg:WaitForChild("XpBar")
-local xpBarText = xpBarBg:WaitForChild("XpBarText")
-
 local barUpdaters = {}
 
-local stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+-- Level + XP Bar
+local levelText = mainGui.LevelText
+local levelUpButton = mainGui.LvlUpButton
 
-local bananas = uiInfos:WaitForChild("Bananas")
-local bananaText = mainGui:WaitForChild("BananaNbrText")
+local xpBarBg = mainGui.XpBarBG
+local xpBar = xpBarBg.XpBar
+local xpBarText = xpBarBg.XpBarText
+
+-- Stage
+local stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+local nextStageTimer = mainGui.NextStageTimerTick
+-- local currentStageText = mainGui.StageProgressBG.StageNbr
+local bananaText = mainGui.BananaNbrText
 
 -- Augments
 local cardGui = playerGui:WaitForChild("CardGui")
-local rerollButton = cardGui:WaitForChild("RerollButton")
-local cards = { cardGui:WaitForChild("Card_01"), cardGui:WaitForChild("Card_02"), cardGui:WaitForChild("Card_03") }
-local cardTexts =
-	{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
+local rerollButton = cardGui.RerollButton
+local cards = { cardGui.Card_01, cardGui.Card_02, cardGui.Card_03 }
+local cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel }
 local blur = nil
 
 -- Sounds
@@ -55,6 +56,10 @@ local levelUpSound = playerGui.Sounds.LvlUp
 local augmentMenuSound = playerGui.Sounds.AugmentMenu
 local augmentPickSound = playerGui.Sounds.AugmentPick
 local getXPSound = playerGui.Sounds.GetXp
+
+local humanoid = player.Character.Humanoid
+humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 
 local function OnLevelUp(level, waitingLevels)
 	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
@@ -191,36 +196,36 @@ end
 
 -- Respawn
 local function onCharacterAdded(character)
-	print("Character Added")
-	local humanoid = character:WaitForChild("Humanoid")
+	-- print("Character Added")
+	local humanoid2 = character.Humanoid -- :WaitForChild("Humanoid")
 
 	-- Disable Fall
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	humanoid2:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	humanoid2:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 
 	-- Re-fetch UI elements on respawn
 	uiInfos = player:WaitForChild("UIInfos")
-	xpBarCurrent = uiInfos:WaitForChild("XpBarCurrent")
-	xpBarMax = uiInfos:WaitForChild("XpBarMax")
+	xpBarCurrent = uiInfos.XpBarCurrent -- :WaitForChild("XpBarCurrent")
+	xpBarMax = uiInfos.XpBarMax -- :WaitForChild("XpBarMax")
 
 	mainGui = playerGui:WaitForChild("MainGui")
-	xpBarBg = mainGui:WaitForChild("XpBarBG")
-	xpBar = xpBarBg:WaitForChild("XpBar")
-	xpBarText = xpBarBg:WaitForChild("XpBarText")
-	xpBarUpdater = nil
 
-	bananas = uiInfos.Bananas
-	bananaText = mainGui:WaitForChild("BananaNbrText")
+	xpBarBg = mainGui.XpBarBG -- :WaitForChild("XpBarBG")
+	xpBar = xpBarBg.XpBar -- :WaitForChild("XpBar")
+	xpBarText = xpBarBg.XpBarText -- :WaitForChild("XpBarText")
 
-	levelText = mainGui:WaitForChild("LevelText")
-	levelUpButton = mainGui:WaitForChild("Lvl+Button")
+	bananaText = mainGui.BananaNbrText -- :WaitForChild("BananaNbrText")
+
+	levelText = mainGui.LevelText -- :WaitForChild("LevelText")
+	levelUpButton = mainGui.LvlUpButton --:WaitForChild("LvlUpButton")
+
+	stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+	currentStageText = mainGui.StageProgressBG.StageNbr
 
 	cardGui = playerGui:WaitForChild("CardGui")
-	rerollButton = cardGui:WaitForChild("RerollButton")
-	cards = { cardGui:WaitForChild("Card_01"), cardGui:WaitForChild("Card_02"), cardGui:WaitForChild("Card_03") }
-	cardTexts =
-		{ cards[1]:WaitForChild("TextLabel"), cards[2]:WaitForChild("TextLabel"), cards[3]:WaitForChild("TextLabel") }
-	blur = nil
+	rerollButton = cardGui.RerollButton -- :WaitForChild("RerollButton")
+	cards = { cardGui.Card_01, cardGui.Card_02, cardGui.Card_03 } -- :WaitForChild("Card_01") :WaitForChild("Card_02") :WaitForChild("Card_03")
+	cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel } -- :WaitForChild("TextLabel")
 
 	InitUi()
 end
@@ -240,8 +245,12 @@ end)
 xpBarCurrent.Changed:Connect(UpdateXpBar)
 xpBarMax.Changed:Connect(UpdateXpBar)
 
-bananas.Changed:Connect(function()
-	bananaText.Text = bananas.Value
+-- bananas.Changed:Connect(function()
+-- 	bananaText.Text = bananas.Value
+-- end)
+
+Events.BananaPickup.OnClientEvent:Connect(function(bananasCount)
+	bananaText.Text = bananasCount
 end)
 
 levelUpEvent.OnClientEvent:Connect(OnLevelUp)
@@ -252,6 +261,10 @@ augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 Events.XpPickup.OnClientEvent:Connect(function()
 	getXPSound:Play()
 end)
+
+-- Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
+-- 	currentStageText.Text = currentStage .. " / 5"
+-- end)
 
 stageProgress.OnClientEvent:Connect(function(progress)
 	UpdateBar(stageProgressBar, progress)

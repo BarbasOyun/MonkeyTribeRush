@@ -178,14 +178,14 @@ function gears.SpawnBanana(spawnPosition)
 	gears.LootMovement(newBanana, spawnPosition)
 end
 
-function gears.SpawnEnemyCircle(basePosition)
+function gears.SpawnEnemyCircle(basePosition) -- TODO : Move to Enemy Service
 	local radius = math.random(60, 120)
-	local progress = math.random(0, math.pi * 2)
+	local progress = gears.FloatRandom(0, math.rad(360)) -- math.pi * 2
 	local circlePos = gears.CirclePos(radius, progress)
 	gears.SpawnEnemy(basePosition + Vector3.new(circlePos.X, 0, circlePos.Y))
 end
 
-function gears.SpawnEnemy(spawnPosition)
+function gears.SpawnEnemy(spawnPosition) -- TODO : Move to Enemy Service
 	local newEnemy = enemy:Clone()
 	newEnemy.Parent = weaponHitFolder
 	local xPos = math.clamp(spawnPosition.X, mapLimits.X.X, mapLimits.X.Y)
@@ -214,7 +214,7 @@ function gears.SaveData()
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		print("Save Data for : " .. player.Name)
-		print(player.leaderstats)
+		-- print(player.leaderstats)
 		-- BananasData:IncrementAsync(player.UserId, 1)
 	end
 end
