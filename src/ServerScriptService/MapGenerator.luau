@@ -9,6 +9,7 @@ local ServerEvents = ServerScriptService.Server
 local mapGenerator = {}
 
 local weaponHitFolder = workspace.WeaponHit
+local orbsFolder = workspace.XP_Orbs
 
 -- Buildings Data
 -- TODO : Move to file
@@ -36,23 +37,25 @@ local mapsMusics = {
 
 -- Stage
 local MINIMUM_RADIUS = 40
+local SPAWN_POS = Vector2.new(0, -160)
 -- local CIRCLE_DIVISION = 20
 local ADDITIONAL_BUILDINGS = 2
 local BUILDING_LIMIT = 10
 local isWaitingForNextStage = false
 
+local currentMapId = math.random(1, #maps)
+
+local currentStage = 0
+local stageBuildingNbr = 3
 local currentMusic = nil
 
 local totalParts = 0
 local partsCount = 0
 
-local stageBuildingNbr = 3
--- local maxStage = 5 -- TODO : Roll
-local currentStage = 0
-
+-- Stage Events
 local eventsEnum = { SWARM = "SWARM" } -- TODO Add More Events
 local maxEvents = 0
-local currentEvent = 0
+local currentEvent = 1
 local stageEvents = {}
 
 function mapGenerator.FindOverlappingNodes(nodesPos, nodesBuilding, startPos, radius)
@@ -78,7 +81,7 @@ function mapGenerator.FindOverlappingNodes(nodesPos, nodesBuilding, startPos, ra
 end
 
 function mapGenerator.AdjustNodePos(startPos, overlappingNodes, radius)
-	local adjustDirection = Vector2.new(0, 0)
+	local adjustDirection = Vector2.zero
 	local adjustDistance = 0
 
 	for i in overlappingNodes do
@@ -94,11 +97,12 @@ function mapGenerator.AdjustNodePos(startPos, overlappingNodes, radius)
 
 	local adjustedPos = startPos + Gears.NormalizeOrZero(adjustDirection) * adjustDistance
 
+	-- Minimum Distance Spawn
 	local minimumDistance = radius + MINIMUM_RADIUS
-	local distanceCenter = Gears.PointsDistance(Vector2.zero, adjustedPos) -- Vector2.zero = Center of the Map
+	local distanceCenter = Gears.PointsDistance(SPAWN_POS, adjustedPos)
 
 	if distanceCenter < minimumDistance then
-		adjustDirection = adjustedPos - Vector2.zero
+		adjustDirection = adjustedPos - SPAWN_POS
 		adjustDistance = minimumDistance - distanceCenter
 		adjustedPos = adjustedPos + Gears.NormalizeOrZero(adjustDirection) * adjustDistance
 	end
@@ -149,8 +153,6 @@ function mapGenerator.GenerateMapData(stageRadiusSize, buildingTable, buildingNb
 end
 
 function mapGenerator.GenerateMap(stageRadiusSize, mapId, buildingNbr)
-	mapGenerator.ClearMap()
-
 	local buildingTable = maps[mapId]
 	local nodesPos, nodesBuilding = mapGenerator.GenerateMapData(stageRadiusSize, buildingTable, buildingNbr)
 
@@ -161,7 +163,7 @@ function mapGenerator.GenerateMap(stageRadiusSize, mapId, buildingNbr)
 	-- DEBUG
 	-- RunService.Heartbeat:Connect(function()
 	-- 	Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(stageRadiusSize, CIRCLE_DIVISION))
-	-- 	Gears.DrawCircle(Vector3.new(0, 3, 0), Gears.CirclePoints(MINIMUM_RADIUS, CIRCLE_DIVISION)) -- Min Radius
+	-- 	Gears.DrawCircle(Vector3.new(SPAWN_POS.X, 3, SPAWN_POS.Y), Gears.CirclePoints(MINIMUM_RADIUS, CIRCLE_DIVISION)) -- Min Radius
 	-- end)
 
 	-- Instantiate Buildings
@@ -175,6 +177,18 @@ function mapGenerator.GenerateMap(stageRadiusSize, mapId, buildingNbr)
 		-- 	Gears.DrawCircle(building:GetPivot().Position, Gears.CirclePoints(nodesBuilding[i].radius, CIRCLE_DIVISION))
 		-- end)
 	end
+end
+
+function mapGenerator.GenerateEvents()
+	maxEvents = math.random(3, 4)
+	-- print("Generating " .. maxEvents .. " Events")
+
+	for i = 1, maxEvents do
+		-- print("Stage Event " .. i .. " : " .. eventsEnum.SWARM)
+		table.insert(stageEvents, eventsEnum.SWARM)
+	end
+
+	mapGenerator[0] = #stageEvents
 end
 
 function mapGenerator.FinishStage()
@@ -191,11 +205,12 @@ function mapGenerator.FinishStage()
 	-- 	return
 	-- end
 
-	-- Countdown
-	print("10 sec until New Stage")
 	isWaitingForNextStage = true
 	Events.CurrentStageChanged:FireAllClients(currentStage)
 	ServerEvents.StageChanged:Fire()
+
+	-- Countdown
+	print("10 sec until New Stage")
 	local countDown = 10
 	for _ = 0, 10, 1 do
 		task.wait(1)
@@ -203,13 +218,15 @@ function mapGenerator.FinishStage()
 		Events.NextStageTimerTick:FireAllClients(countDown)
 	end
 
+	-- Stage Increments
 	stageBuildingNbr = math.clamp(stageBuildingNbr + ADDITIONAL_BUILDINGS, 0, BUILDING_LIMIT)
-	totalParts = 0
-	partsCount = 0
+
+	-- Restart
+	mapGenerator.ResetStage()
 	mapGenerator.StartStage()
 end
 
-function mapGenerator.IncrementBuilding()
+function mapGenerator.StageProgress()
 	if isWaitingForNextStage then
 		return
 	end
@@ -220,10 +237,15 @@ function mapGenerator.IncrementBuilding()
 	-- print("Current Stage Progress : " .. stageProgress)
 
 	-- Check Stage Events
-	if currentEvent / maxEvents >= stageProgress then
-		print("Trigger : " .. currentEvent)
+	local nextEventProgress = currentEvent / (maxEvents + 1)
+	if nextEventProgress < 1 and stageProgress >= nextEventProgress then
+		print("Trigger Event " .. currentEvent .. " / " .. maxEvents .. " -> " .. stageEvents[currentEvent])
+
+		if stageEvents[currentEvent] == eventsEnum.SWARM then
+			ServerEvents.SwarmEvent:Fire()
+		end
+
 		currentEvent += 1
-		print(stageEvents[currentEvent])
 	end
 
 	-- Stage Finished
@@ -232,35 +254,40 @@ function mapGenerator.IncrementBuilding()
 	end
 end
 
-function mapGenerator.ClearMap() -- Clear Building + Enenmies
+function mapGenerator.ResetStage()
+	isWaitingForNextStage = false
+	Events.StageProgress:FireAllClients(0)
+	table.clear(stageEvents)
+	table.clear(mapGenerator)
+	totalParts = 0
+	partsCount = 0
+
+	-- Clear Building + Enenmies
 	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
 		object:Destroy()
+	end
+
+	-- Clear Orbs
+	for _, orb in ipairs(orbsFolder:GetDescendants()) do
+		orb:Destroy()
 	end
 
 	if currentMusic then
 		currentMusic:Destroy()
 	end
-end
-
-function mapGenerator.StartStage()
-	isWaitingForNextStage = false
-	Events.StageProgress:FireAllClients(0)
 
 	-- Reset Players Positions
 	for _, player in ipairs(Players:GetPlayers()) do
 		player.Character:MoveTo(Vector3.zero)
 	end
+end
 
-	local mapId = math.random(1, #maps)
-	mapGenerator.GenerateMap(200, mapId, stageBuildingNbr)
+function mapGenerator.StartStage()
+	mapGenerator.GenerateMap(200, currentMapId, stageBuildingNbr)
+	currentMapId += 1
 
-	-- Stage Events
-	maxEvents = math.random(2, 5)
-
-	for i = 0, maxEvents do
-		table.insert(stageEvents, eventsEnum.SWARM)
-		-- print("Stage Event " .. i .. " : " .. eventsEnum.SWARM)
-	end
+	mapGenerator.GenerateEvents()
+	Events.StageInfo:FireAllClients(#stageEvents)
 end
 
 return mapGenerator

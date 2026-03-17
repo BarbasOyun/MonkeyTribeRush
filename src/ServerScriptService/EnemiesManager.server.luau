@@ -1,19 +1,38 @@
 local ServerScriptService = game:GetService("ServerScriptService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PathfindingService = game:GetService("PathfindingService")
--- local RunService = game:GetService("RunService")
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 local Gears = require(ServerScriptService.Server.Gears)
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
-local Events = ReplicatedStorage.Shared
+-- local Events = ReplicatedStorage.Shared
 
+-- Enemies
+local ENEMY_FOLDER = workspace.WeaponHit.Enemies
 local MAX_ENEMIES = 200
+
 local enemies = {}
 local moveToTasks = {}
 
 local scaleSpeed = 1 -- How much stats does the Robots Get over time
+
+-- Attack
+-- TODO : Move Enemy stats in File
+local ATTACK_RANGE = 4
+-- local ATTACK_RANGE_SQ = ATTACK_RANGE ^ 2 -- 16
+local ATTACK_COOLDOWN = 1 -- Seconds
+local FRAME_CHECK_DELTA = 5 -- Frames between every Distance Check
+local attackFrameCount = 1
+
+local attackDmg = 1
+
+local attacked = {}
+
+local params = OverlapParams.new()
+params.FilterDescendantsInstances = { ENEMY_FOLDER }
+params.FilterType = Enum.RaycastFilterType.Include
 
 local function CreatePlayerPath(enemyPos, playerPos)
 	local path = PathfindingService:CreatePath()
@@ -122,6 +141,7 @@ end
 
 local function SetupEnemy(enemy)
 	table.insert(enemies, enemy)
+	enemy.Parent = ENEMY_FOLDER
 
 	enemy.Humanoid.Died:Connect(function()
 		Gears.SpawnXP(enemy.PrimaryPart.Position)
@@ -135,7 +155,7 @@ local function StreamSpawn() -- Spawn Enemies constantly
 		return
 	end
 
-	local spawnDelta = math.random(5, 10)
+	local spawnDelta = math.random(7, 10)
 	task.wait(spawnDelta)
 
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -149,21 +169,95 @@ local function StreamSpawn() -- Spawn Enemies constantly
 	end
 end
 
-local function swarmSpawn() -- Spawn Big wave of Enemies
+local function SwarmSpawn() -- Spawn Big wave of Enemies
+	if #enemies >= MAX_ENEMIES then
+		return
+	end
+
+	local innerWaves = 5
+
+	for _ = 0, innerWaves, 1 do
+		for _, player in ipairs(Players:GetPlayers()) do
+			local enemyNbr = math.random(5, 7)
+			local radius = math.random(60, 120)
+			local progress = Gears.FloatRandom(0, math.rad(360)) -- math.pi * 2
+			local circlePos = Gears.CirclePos(radius, progress)
+			local finalPos = player.Character.PrimaryPart.Position + Vector3.new(circlePos.X, 0, circlePos.Y)
+
+			for _ = 1, enemyNbr, 1 do
+				Gears.SpawnEnemy(finalPos)
+			end
+		end
+
+		task.wait(1) -- Time Delta between Inner Waves
+	end
 end
 
+-- Events Setup
 ServerEvents.EnemySpawned.Event:Connect(function(enemy)
 	-- print("Enemy Spawned : " .. enemy.Name)
-	-- table.insert(enemies, enemy)
 	SetupEnemy(enemy)
 end)
 
-ServerEvents.StageChanged.OnServerEvent:Connect(function()
+ServerEvents.SwarmEvent.Event:Connect(function()
+	SwarmSpawn()
+end)
+
+ServerEvents.StageChanged.Event:Connect(function()
 	table.clear(enemies)
 end)
 
---RunAtPlayer()
+-- Do
+-- Enemies Attacks
+RunService.Heartbeat:Connect(function()
+	if attackFrameCount < FRAME_CHECK_DELTA then
+		attackFrameCount += 1
+		return
+	end
+
+	attackFrameCount = 0
+
+	-- Attack Cooldown
+	for enemy, time in ipairs(attacked) do
+		local attackDelta = tick() - time
+		print("Attack Delta = " .. attackDelta)
+
+		if attackDelta > ATTACK_COOLDOWN then
+			table.remove(attacked, enemy)
+		end
+	end
+
+	local humanoidsHit = {}
+
+	-- Hit Detection
+	-- Draw Sphere around each Players
+	for _, player in ipairs(Players:GetPlayers()) do
+		if not player.Character then
+			continue
+		end
+
+		local root = player.Character.HumanoidRootPart
+		local hitEnemies = workspace:GetPartBoundsInRadius(root.Position, ATTACK_RANGE, params)
+
+		for _, part in ipairs(hitEnemies) do
+			local enemyModel = part.Parent
+
+			if table.find(humanoidsHit, enemyModel) or attacked[enemyModel] then
+				continue
+			end
+
+			table.insert(humanoidsHit, enemyModel)
+			attacked[enemyModel] = tick()
+
+			-- DMG
+			enemyModel.Humanoid:MoveTo(enemyModel.HumanoidRootPart.Position) -- Stop
+			player.Character.Humanoid:TakeDamage(attackDmg)
+		end
+	end
+end)
+
 task.spawn(function()
 	StreamSpawn()
 end)
+--RunAtPlayer()
 MoveToPlayer()

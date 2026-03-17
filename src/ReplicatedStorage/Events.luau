@@ -20,4 +20,5 @@ return {
 	StageProgress = createRemoteEvent("StageProgress"),
 	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),
 	NextStageTimerTick = createRemoteEvent("NextStageTimerTick"),
+	StageInfo = createRemoteEvent("StageInfo"),
 }

@@ -11,7 +11,6 @@ local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 
 local gears = {}
 
-local weaponHitFolder = workspace.WeaponHit
 local mapLimits = { X = Vector2.new(-290, 290), Z = Vector2.new(-190, 190) } -- Real Values = X = Vector2.new(-300, 300), Z = Vector2.new(-200, 200)
 
 -- Prefabs
@@ -140,6 +139,16 @@ function gears.SpherePos(latitude, longitude, radius)
 	return Vector3.new(x, y, z) -- Add to a position
 end
 
+function gears.IncrementLoop(value, increment, max, resetValue)
+	value += increment
+
+	if value >= max then
+		value = resetValue
+	end
+
+	return value
+end
+
 function gears.LootMovement(item, startPos)
 	item.Position = startPos
 	item.Parent = workspace
@@ -187,7 +196,6 @@ end
 
 function gears.SpawnEnemy(spawnPosition) -- TODO : Move to Enemy Service
 	local newEnemy = enemy:Clone()
-	newEnemy.Parent = weaponHitFolder
 	local xPos = math.clamp(spawnPosition.X, mapLimits.X.X, mapLimits.X.Y)
 	local zPos = math.clamp(spawnPosition.Z, mapLimits.Z.X, mapLimits.Z.Y)
 	newEnemy.PrimaryPart.CFrame = CFrame.new(Vector3.new(xPos, spawnPosition.Y, zPos))

@@ -38,9 +38,11 @@ local xpBar = xpBarBg.XpBar
 local xpBarText = xpBarBg.XpBarText
 
 -- Stage
-local stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+local stageProgressBG = mainGui.StageProgressBG
+local stageProgressBar = stageProgressBG.StageProgressBar
+local swarmSkull = ReplicatedStorage.Prefabs.SwarmSkull
 local nextStageTimer = mainGui.NextStageTimer
--- local currentStageText = mainGui.StageProgressBG.StageNbr
+
 local bananaText = mainGui.BananaNbrText
 
 -- Augments
@@ -108,10 +110,12 @@ local function DisplayAugments()
 		return
 	end
 
-	local lighting = game:WaitForChild("Lighting")
-	blur = Instance.new("BlurEffect")
-	blur.Size = 10
-	blur.Parent = lighting
+	if not blur then
+		local lighting = game.Lighting -- :WaitForChild("Lighting")
+		blur = Instance.new("BlurEffect")
+		blur.Size = 10
+		blur.Parent = lighting
+	end
 
 	cardGui.Enabled = true
 	augmentMenuSound:Play()
@@ -220,7 +224,6 @@ local function onCharacterAdded(character)
 	levelUpButton = mainGui.LvlUpButton --:WaitForChild("LvlUpButton")
 
 	stageProgressBar = mainGui.StageProgressBG.StageProgressBar
-	currentStageText = mainGui.StageProgressBG.StageNbr
 
 	cardGui = playerGui:WaitForChild("CardGui")
 	rerollButton = cardGui.RerollButton -- :WaitForChild("RerollButton")
@@ -242,15 +245,13 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	end
 end)
 
-xpBarCurrent.Changed:Connect(UpdateXpBar)
+-- Player Events
+player.CharacterAdded:Connect(onCharacterAdded)
+
+xpBarCurrent.Changed:Connect(UpdateXpBar) -- TODO : Delete
 xpBarMax.Changed:Connect(UpdateXpBar)
-
--- bananas.Changed:Connect(function()
--- 	bananaText.Text = bananas.Value
--- end)
-
-Events.BananaPickup.OnClientEvent:Connect(function(bananasCount)
-	bananaText.Text = bananasCount
+Events.XpPickup.OnClientEvent:Connect(function()
+	getXPSound:Play()
 end)
 
 levelUpEvent.OnClientEvent:Connect(OnLevelUp)
@@ -258,12 +259,24 @@ levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
 augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 
-Events.XpPickup.OnClientEvent:Connect(function()
-	getXPSound:Play()
+Events.BananaPickup.OnClientEvent:Connect(function(bananasCount)
+	bananaText.Text = bananasCount
+end)
+
+-- Stage Events
+Events.StageInfo.OnClientEvent:Connect(function(stageEventsNbr)
+	-- Swarm Icons
+	-- print("Display " .. stageEventsNbr .. " Skulls")
+	local adjusted = stageEventsNbr + 1
+	for i = 1, stageEventsNbr, 1 do
+		local swarmIcon = swarmSkull:clone()
+		swarmIcon.Parent = stageProgressBG
+		swarmIcon.Position = UDim2.new(i / adjusted - 0.04, -0.3) -- 0.04 = Half Skull Size
+	end
 end)
 
 Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
-	-- currentStageText.Text = currentStage .. " / 5"
+	nextStageTimer.Text = "Next Stage In 10s"
 	nextStageTimer.Visible = true
 end)
 
@@ -280,5 +293,3 @@ stageProgress.OnClientEvent:Connect(function(progress)
 end)
 
 InitUi()
-
-player.CharacterAdded:Connect(onCharacterAdded)

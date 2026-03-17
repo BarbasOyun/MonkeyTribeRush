@@ -75,7 +75,7 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 		building:Destroy()
 		buildingsHealth[building] = nil
 		playerStat.destruction.Value += 1
-		MapGenerator.IncrementBuilding()
+		MapGenerator.StageProgress()
 
 		-- Enemy Spawn
 		local enemyRoll = math.random(0, 100)

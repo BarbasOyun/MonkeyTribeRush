@@ -14,12 +14,12 @@ local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local Events = ReplicatedStorage.Shared
 
 -- Players
-local MAX_SPEED = 100
-local MAX_DISTANCE = 200
+-- local MAX_SPEED = 100
+local MAX_DISTANCE = 250
 
 local bananaCount = 0
 
-local xpFrame = 5 -- Gather xp Every X Frame
+local XP_FRAME = 5 -- Gather xp Every X Frame
 local frameCount = 0
 
 -- XpGrabRange Parameters
@@ -43,6 +43,18 @@ local function EquipDefaultWeapon(player)
 	if defaultTool then
 		humanoid:EquipTool(defaultTool)
 	end
+end
+
+local function SetupPlayer(player)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Parent = player
+	leaderstats.Name = "leaderstats"
+
+	local uiInfos = Instance.new("Folder")
+	uiInfos.Parent = player
+	uiInfos.Name = "UIInfos"
+
+	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
 end
 
 local function GetXp(xpOrb, player)
@@ -90,7 +102,7 @@ local function GrabXp(character, xpOrb, player)
 end
 
 local function XpGrabRange()
-	if frameCount < xpFrame then
+	if frameCount < XP_FRAME then
 		frameCount += 1
 		return
 	end
@@ -101,6 +113,11 @@ local function XpGrabRange()
 		-- print(player.Name)
 		local playerStats = PlayersStats[player.UserId]
 		local character = player.Character or player.CharacterAdded:Wait()
+
+		if not character then
+			return
+		end
+
 		local position = character.HumanoidRootPart.CFrame.Position
 		local range = playerStats.finalPickupRange
 
@@ -117,17 +134,11 @@ RunService.Heartbeat:Connect(XpGrabRange)
 Players.PlayerAdded:Connect(function(player)
 	print(player.Name .. " has joined the game")
 
-	local leaderstats = Instance.new("Folder")
-	leaderstats.Parent = player
-	leaderstats.Name = "leaderstats"
-
-	local uiInfos = Instance.new("Folder")
-	uiInfos.Parent = player
-	uiInfos.Name = "UIInfos"
-
-	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
-
+	SetupPlayer(player)
 	EquipDefaultWeapon(player)
+
+	-- Send Current Stage Infos
+	Events.StageInfo:FireClient(player, MapGenerator[0])
 
 	local character = player.Character
 	local root = character:FindFirstChild("HumanoidRootPart")
