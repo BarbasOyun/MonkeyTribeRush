@@ -23,11 +23,12 @@ local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos.XpBarCurrent
-local xpBarMax = uiInfos.XpBarMax --:WaitForChild("XpBarMax")
+local xpBarMax = uiInfos.XpBarMax
 
 -- Main UI
 local mainGui = playerGui:WaitForChild("MainGui")
 local barUpdaters = {}
+local deathUI = mainGui.DeathUI
 
 -- Level + XP Bar
 local levelText = mainGui.LevelText
@@ -44,6 +45,7 @@ local swarmSkull = ReplicatedStorage.Prefabs.SwarmSkull
 local nextStageTimer = mainGui.NextStageTimer
 
 local bananaText = mainGui.BananaNbrText
+local robotLvlText = mainGui.RobotIcon.RobotLvlText
 
 -- Augments
 local cardGui = playerGui:WaitForChild("CardGui")
@@ -53,7 +55,6 @@ local cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel }
 local blur = nil
 
 -- Sounds
--- local levelUpSound = playerGui.Sounds:WaitForChild("LvlUp")
 local levelUpSound = playerGui.Sounds.LvlUp
 local augmentMenuSound = playerGui.Sounds.AugmentMenu
 local augmentPickSound = playerGui.Sounds.AugmentPick
@@ -177,6 +178,15 @@ local function UpdateXpBar()
 	UpdateBar(xpBar, xpBarCurrent.Value / xpBarMax.Value)
 end
 
+local function SetupStageEventsUI(stageEventsNbr)
+	local adjusted = stageEventsNbr + 1
+	for i = 1, stageEventsNbr, 1 do
+		local swarmIcon = swarmSkull:clone()
+		swarmIcon.Parent = stageProgressBG
+		swarmIcon.Position = UDim2.new(i / adjusted - 0.04, -0.3) -- 0.04 = Half Skull XSize
+	end
+end
+
 local function InitUi()
 	rerollButton.MouseButton1Click:Connect(Reroll)
 	rerollEvent.OnClientEvent:Connect(SetupAugments)
@@ -201,34 +211,50 @@ end
 -- Respawn
 local function onCharacterAdded(character)
 	-- print("Character Added")
-	local humanoid2 = character.Humanoid -- :WaitForChild("Humanoid")
+	local humanoid2 = character.Humanoid
 
 	-- Disable Fall
 	humanoid2:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 	humanoid2:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 
 	-- Re-fetch UI elements on respawn
+	-- Player
 	uiInfos = player:WaitForChild("UIInfos")
-	xpBarCurrent = uiInfos.XpBarCurrent -- :WaitForChild("XpBarCurrent")
-	xpBarMax = uiInfos.XpBarMax -- :WaitForChild("XpBarMax")
+	xpBarCurrent = uiInfos.XpBarCurrent
+	xpBarMax = uiInfos.XpBarMax
 
 	mainGui = playerGui:WaitForChild("MainGui")
 
-	xpBarBg = mainGui.XpBarBG -- :WaitForChild("XpBarBG")
-	xpBar = xpBarBg.XpBar -- :WaitForChild("XpBar")
-	xpBarText = xpBarBg.XpBarText -- :WaitForChild("XpBarText")
+	deathUI = mainGui.DeathUI
+	deathUI.Visible = false
 
-	bananaText = mainGui.BananaNbrText -- :WaitForChild("BananaNbrText")
+	xpBarBg = mainGui.XpBarBG
+	xpBar = xpBarBg.XpBar
+	xpBarText = xpBarBg.XpBarText
 
-	levelText = mainGui.LevelText -- :WaitForChild("LevelText")
-	levelUpButton = mainGui.LvlUpButton --:WaitForChild("LvlUpButton")
-
-	stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+	levelText = mainGui.LevelText
+	levelUpButton = mainGui.LvlUpButton
 
 	cardGui = playerGui:WaitForChild("CardGui")
-	rerollButton = cardGui.RerollButton -- :WaitForChild("RerollButton")
-	cards = { cardGui.Card_01, cardGui.Card_02, cardGui.Card_03 } -- :WaitForChild("Card_01") :WaitForChild("Card_02") :WaitForChild("Card_03")
-	cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel } -- :WaitForChild("TextLabel")
+	rerollButton = cardGui.RerollButton
+	cards = { cardGui.Card_01, cardGui.Card_02, cardGui.Card_03 }
+	cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel }
+
+	-- Stage
+	stageProgressBG = mainGui.StageProgressBG
+	stageProgressBar = mainGui.StageProgressBG.StageProgressBar
+	swarmSkull = ReplicatedStorage.Prefabs.SwarmSkull
+	bananaText = mainGui.BananaNbrText
+	robotLvlText = mainGui.RobotIcon.RobotLvlText
+
+	-- Sounds
+	levelUpSound = playerGui.Sounds.LvlUp
+	augmentMenuSound = playerGui.Sounds.AugmentMenu
+	augmentPickSound = playerGui.Sounds.AugmentPick
+	getXPSound = playerGui.Sounds.GetXp
+
+	-- Update new UI
+	Events.GetFullStageData:FireServer()
 
 	InitUi()
 end
@@ -259,20 +285,41 @@ levelUpButton.MouseButton1Click:Connect(DisplayAugments)
 
 augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 
+-- Death
+Events.PlayerDied.OnClientEvent:Connect(function()
+	deathUI.Visible = true
+end)
+
+-- Stage Events
+
+-- Get Full Stage Data -> StageEvents, StageProgress, Bananas, EnemiesLevel
+Events.GetFullStageData.OnClientEvent:Connect(
+	function(stageEventsNbr, stageBarProgress, bananasCount, globalEnemiesLevel)
+		SetupStageEventsUI(stageEventsNbr)
+		UpdateBar(stageProgressBar, stageBarProgress)
+		bananaText.Text = bananasCount
+		robotLvlText.Text = "Lvl " .. globalEnemiesLevel
+	end
+)
+
+-- StageEvents
+Events.StageData.OnClientEvent:Connect(function(stageEventsNbr)
+	SetupStageEventsUI(stageEventsNbr)
+end)
+
+-- Stage Progress
+stageProgress.OnClientEvent:Connect(function(progress)
+	UpdateBar(stageProgressBar, progress)
+end)
+
+-- Bananas
 Events.BananaPickup.OnClientEvent:Connect(function(bananasCount)
 	bananaText.Text = bananasCount
 end)
 
--- Stage Events
-Events.StageInfo.OnClientEvent:Connect(function(stageEventsNbr)
-	-- Swarm Icons
-	-- print("Display " .. stageEventsNbr .. " Skulls")
-	local adjusted = stageEventsNbr + 1
-	for i = 1, stageEventsNbr, 1 do
-		local swarmIcon = swarmSkull:clone()
-		swarmIcon.Parent = stageProgressBG
-		swarmIcon.Position = UDim2.new(i / adjusted - 0.04, -0.3) -- 0.04 = Half Skull Size
-	end
+-- Enemies Lvl
+Events.EnemyLevelUp.OnClientEvent:Connect(function(globalEnemiesLevel)
+	robotLvlText.Text = "Lvl " .. globalEnemiesLevel
 end)
 
 Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
@@ -286,10 +333,6 @@ Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
 	if currentTimer == 0 then
 		nextStageTimer.Visible = false
 	end
-end)
-
-stageProgress.OnClientEvent:Connect(function(progress)
-	UpdateBar(stageProgressBar, progress)
 end)
 
 InitUi()

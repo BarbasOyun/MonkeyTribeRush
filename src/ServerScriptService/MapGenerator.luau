@@ -37,7 +37,7 @@ local mapsMusics = {
 
 -- Stage
 local MINIMUM_RADIUS = 40
-local SPAWN_POS = Vector2.new(0, -160)
+local SPAWN_POS = Vector2.new(0, 170)
 -- local CIRCLE_DIVISION = 20
 local ADDITIONAL_BUILDINGS = 2
 local BUILDING_LIMIT = 10
@@ -188,7 +188,7 @@ function mapGenerator.GenerateEvents()
 		table.insert(stageEvents, eventsEnum.SWARM)
 	end
 
-	mapGenerator[0] = #stageEvents
+	mapGenerator.stageEventsNbr = #stageEvents
 end
 
 function mapGenerator.FinishStage()
@@ -207,7 +207,6 @@ function mapGenerator.FinishStage()
 
 	isWaitingForNextStage = true
 	Events.CurrentStageChanged:FireAllClients(currentStage)
-	ServerEvents.StageChanged:Fire()
 
 	-- Countdown
 	print("10 sec until New Stage")
@@ -218,12 +217,20 @@ function mapGenerator.FinishStage()
 		Events.NextStageTimerTick:FireAllClients(countDown)
 	end
 
+	ServerEvents.StageChanged:Fire()
+
 	-- Stage Increments
 	stageBuildingNbr = math.clamp(stageBuildingNbr + ADDITIONAL_BUILDINGS, 0, BUILDING_LIMIT)
 
 	-- Restart
 	mapGenerator.ResetStage()
 	mapGenerator.StartStage()
+end
+
+function mapGenerator.SetStageProgress(stageProgress)
+	Events.StageProgress:FireAllClients(stageProgress)
+	mapGenerator.stageProgress = stageProgress
+	-- print("Current Stage Progress : " .. stageProgress)
 end
 
 function mapGenerator.StageProgress()
@@ -233,13 +240,13 @@ function mapGenerator.StageProgress()
 
 	partsCount += 1
 	local stageProgress = partsCount / totalParts
-	Events.StageProgress:FireAllClients(stageProgress)
+	mapGenerator.SetStageProgress(stageProgress)
 	-- print("Current Stage Progress : " .. stageProgress)
 
 	-- Check Stage Events
 	local nextEventProgress = currentEvent / (maxEvents + 1)
 	if nextEventProgress < 1 and stageProgress >= nextEventProgress then
-		print("Trigger Event " .. currentEvent .. " / " .. maxEvents .. " -> " .. stageEvents[currentEvent])
+		-- print("Trigger Event " .. currentEvent .. " / " .. maxEvents .. " -> " .. stageEvents[currentEvent])
 
 		if stageEvents[currentEvent] == eventsEnum.SWARM then
 			ServerEvents.SwarmEvent:Fire()
@@ -256,14 +263,17 @@ end
 
 function mapGenerator.ResetStage()
 	isWaitingForNextStage = false
-	Events.StageProgress:FireAllClients(0)
+	mapGenerator.SetStageProgress(0)
 	table.clear(stageEvents)
-	table.clear(mapGenerator)
 	totalParts = 0
 	partsCount = 0
 
-	-- Clear Building + Enenmies
+	-- Clear Building + Enemies
 	for _, object in ipairs(weaponHitFolder:GetDescendants()) do
+		if object:IsA("Folder") then -- TODO : Create Building Folder
+			continue
+		end
+
 		object:Destroy()
 	end
 
@@ -278,16 +288,16 @@ function mapGenerator.ResetStage()
 
 	-- Reset Players Positions
 	for _, player in ipairs(Players:GetPlayers()) do
-		player.Character:MoveTo(Vector3.zero)
+		player.Character:MoveTo(Vector3.new(SPAWN_POS.X, 1, SPAWN_POS.Y))
 	end
 end
 
 function mapGenerator.StartStage()
 	mapGenerator.GenerateMap(200, currentMapId, stageBuildingNbr)
-	currentMapId += 1
+	currentMapId = Gears.LoopValue(currentMapId + 1, #maps, 1)
 
 	mapGenerator.GenerateEvents()
-	Events.StageInfo:FireAllClients(#stageEvents)
+	Events.StageData:FireAllClients(#stageEvents)
 end
 
 return mapGenerator

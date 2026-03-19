@@ -11,6 +11,8 @@ local WeaponConfig = require(ReplicatedStorage.Shared.Modules.WeaponConfig)
 local Gears = require(ServerScriptService.Server.Gears)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 
+local buildingHitSound = ReplicatedStorage.Prefabs.BuildingHit
+
 --Remote Events
 local attackEvent = Events.ToolAttack
 local equipEvent = Events.ToolEquip
@@ -97,14 +99,16 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 	end
 end
 
-local function HitDetection(player, playerStat, weaponInfo, finalDamage)
+local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	local attackPosition = weaponInfo.attackPoint.WorldCFrame
+	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
+	local humanoidsHit = {}
+	local isBuilding = false
+
 	-- DEBUG
 	Gears.ExecuteFor(0.5, function()
 		Gears.DrawSphere(attackPosition.Position, weaponInfo.range)
 	end)
-	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
-	local humanoidsHit = {}
 
 	for _, hit in ipairs(hits) do
 		-- print("Hit Part: " .. hit.Name)
@@ -120,9 +124,21 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage)
 				end
 			end
 		else
+			isBuilding = true
 			HitBuilding(hit, finalDamage, player, playerStat)
 		end
 	end
+
+	-- Attack SFX
+	if isCrit then
+		weaponInfo.sounds.crit:Play()
+		return
+	elseif isBuilding then
+		weaponInfo.sounds.buildingHit:Play()
+		return
+	end
+
+	weaponInfo.sounds.slash:Play()
 end
 
 -- Attack Callback
@@ -146,17 +162,19 @@ local function WeaponDamage(player)
 	-- Get Damage & Crit
 	local finalDamage = weaponInfo.finalAttackDamage
 	local critRoll = math.random(0, 100)
+	local isCrit = false
 	-- print("Crit roll : " .. critRoll .. " Crit Chance : " .. playerStat.critChance)
 
 	if critRoll <= playerStat.critChance then
 		finalDamage *= Gears.IncreaseToMultiplier(playerStat.critMultiplier)
 		-- print("Crit " .. finalDamage)
 		weaponInfo.sounds.crit:Play()
-	else
-		weaponInfo.sounds.slash:Play()
+		isCrit = true
+		-- else
+		-- 	weaponInfo.sounds.slash:Play()
 	end
 
-	HitDetection(player, playerStat, weaponInfo, finalDamage)
+	HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	IncrementCombo(playerStat)
 end
 
@@ -240,8 +258,11 @@ local function OnUnequipped(weapon)
 end
 
 local function CreateWeaponInfo(weapon)
-	-- local handle = weapon:WaitForChild("Handle")
 	local handle = weapon.Handle
+
+	-- Create Sounds
+	local buildingHit = buildingHitSound:clone()
+	buildingHit.Parent = handle
 
 	local weaponInfo = {
 		weapon = weapon,
@@ -259,6 +280,7 @@ local function CreateWeaponInfo(weapon)
 			unsheath = handle.Unsheath,
 			slash = handle.Slash,
 			crit = handle.CriticalSlash,
+			buildingHit = handle.BuildingHit,
 		},
 	}
 

@@ -139,16 +139,6 @@ function gears.SpherePos(latitude, longitude, radius)
 	return Vector3.new(x, y, z) -- Add to a position
 end
 
-function gears.IncrementLoop(value, increment, max, resetValue)
-	value += increment
-
-	if value >= max then
-		value = resetValue
-	end
-
-	return value
-end
-
 function gears.LootMovement(item, startPos)
 	item.Position = startPos
 	item.Parent = workspace
@@ -216,7 +206,7 @@ function gears.GetPartCount(parentObject)
 	return count
 end
 
-function gears.SaveData()
+function gears.SaveData(kills, destruction, bananas)
 	-- Save Data : Kills, Destruction, Bananas -> use pcall
 	-- Cap Data to max
 
@@ -224,6 +214,11 @@ function gears.SaveData()
 		print("Save Data for : " .. player.Name)
 		-- print(player.leaderstats)
 		-- BananasData:IncrementAsync(player.UserId, 1)
+
+		-- local killsData = leaderstats:WaitForChild("KillsData")
+		-- killsData.Changed:Connect(function()
+		-- 	KillsData:SetAsync(player.UserId, killsData.Value)
+		-- end)
 	end
 end
 

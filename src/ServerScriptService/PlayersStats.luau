@@ -29,7 +29,7 @@ local defaultStats = {
 	comboReset = nil,
 	aoe = 0,
 	maxHealth = 100,
-	lifeRegen = 0,
+	lifeRegen = 1,
 	lifeRegenUpdate = nil,
 	damageReduction = 0,
 	mobility = 15,
@@ -138,14 +138,19 @@ function playersStats.ApplyStats(player)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
 
-	humanoid.MaxHealth = playerStat.maxHealth
+	-- UTILS
 	humanoid.WalkSpeed = playerStat.mobility
 	humanoid.JumpPower = 40 + playerStat.mobility / 2
 	-- playerStat.currentXp.Value = playerStat.currentXp.Value -- Update XP Bar
 
 	playerStat.finalPickupRange = playerStat.pickupRange * Gears.IncreaseToMultiplier(playerStat.increasedPickupRange)
 
-	-- Life Regen
+	-- DEFENCE
+	local hpDelta = playerStat.maxHealth - humanoid.MaxHealth
+	humanoid.MaxHealth = playerStat.maxHealth
+	humanoid.Health += hpDelta
+
+	-- HP Regen
 	if playerStat.lifeRegenUpdate then
 		playerStat.lifeRegenUpdate:Disconnect()
 		playerStat.lifeRegenUpdate = nil
@@ -159,6 +164,7 @@ function playersStats.ApplyStats(player)
 
 	playerStat.damageReduction = math.clamp(playerStat.damageReduction, 0, 90) -- Cap DR to 90%
 
+	-- OFFENSE
 	playersStats.CalculateAttackSpeed(playerStat)
 	playersStats.CalculateAttackDamage(playerStat)
 	playersStats.CalculateAoe(playerStat)
@@ -286,9 +292,11 @@ augmentPick.OnServerEvent:Connect(function(player)
 	end
 
 	-- print(player.Name .. "Is Picking Augment")
-	playersStats[player.UserId].pickingAugment = true
+	local playerStats = playersStats[player.UserId]
+	playerStats.lifeRegenUpdate:Disconnect()
+	playerStats.pickingAugment = true
+
 	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
-	-- Make Player Immune
 end)
 
 -- Augment Choice Made
@@ -315,6 +323,7 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 	-- Additional Levels
 	if playerStat.waitingLevel > 0 then
 		playersStats.SendAugment(player, playerStat)
+		playerStat.lifeRegenUpdate:Disconnect() -- TODO : Refactor
 		return
 	end
 

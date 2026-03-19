@@ -20,5 +20,8 @@ return {
 	StageProgress = createRemoteEvent("StageProgress"),
 	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),
 	NextStageTimerTick = createRemoteEvent("NextStageTimerTick"),
-	StageInfo = createRemoteEvent("StageInfo"),
+	EnemyLevelUp = createRemoteEvent("EnemyLevelUp"),
+	StageData = createRemoteEvent("StageData"),
+	GetFullStageData = createRemoteEvent("GetFullStageData"),
+	PlayerDied = createRemoteEvent("PlayerDied"),
 }

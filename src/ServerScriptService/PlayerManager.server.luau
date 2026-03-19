@@ -8,16 +8,30 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
+-- local TeleportService = game:GetService("TeleportService")
+-- local SafeTeleport = require(game.ReplicatedStorage:WaitForChild("SafeTeleport"))
+local SafeTeleport = ReplicatedStorage.Shared.SafeTeleport
+
+local hubPlaceId = 92891776561997
+
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
--- local Gears = require(ServerScriptService.Server.Gears)
+local Gears = require(ServerScriptService.Server.Gears)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
+local ServerEvents = ServerScriptService.Server
 local Events = ReplicatedStorage.Shared
 
 -- Players
+local FULL_STAGE_DATA_CD = 10 -- sec
+local fullStageDataCD = {}
+
+Players.CharacterAutoLoads = false -- Prevent Auto Respawn
+local deadPlayers = {}
+
 -- local MAX_SPEED = 100
 local MAX_DISTANCE = 250
 
 local bananaCount = 0
+local globalEnemiesLevel = 1
 
 local XP_FRAME = 5 -- Gather xp Every X Frame
 local frameCount = 0
@@ -42,6 +56,24 @@ local function EquipDefaultWeapon(player)
 	local defaultTool = backpack:FindFirstChild("WoodenClub")
 	if defaultTool then
 		humanoid:EquipTool(defaultTool)
+	end
+end
+
+local function GameOver()
+	print("Game Over -> Going back to Hub")
+	Gears.SaveData()
+	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
+		return SafeTeleport(hubPlaceId, { Players:GetPlayers() })
+	end)
+end
+
+local function OnPlayerDeath(player)
+	print(player.Name .. " died! Waiting Next Stage to respawn...")
+	table.insert(deadPlayers, player)
+	Events.PlayerDied:FireClient(player)
+
+	if #deadPlayers >= #Players:GetPlayers() then
+		GameOver()
 	end
 end
 
@@ -129,19 +161,54 @@ local function XpGrabRange()
 	end
 end
 
-RunService.Heartbeat:Connect(XpGrabRange)
+-- Events
+
+-- TODO : Refactor
+ServerEvents.EnemiesLevel.Event:Connect(function()
+	globalEnemiesLevel += 1
+	Events.EnemyLevelUp:FireAllClients(globalEnemiesLevel)
+end)
+
+-- Respawn on new Stage
+ServerEvents.StageChanged.Event:Connect(function()
+	for _, player in ipairs(deadPlayers) do
+		player:LoadCharacter()
+	end
+end)
+
+Events.GetFullStageData.OnServerEvent:Connect(function(player)
+	if fullStageDataCD[player] and tick() - fullStageDataCD[player] < FULL_STAGE_DATA_CD then
+		return
+	end
+
+	fullStageDataCD[player] = tick()
+
+	Events.GetFullStageData:FireClient(
+		player,
+		MapGenerator.stageEventsNbr,
+		MapGenerator.stageProgress,
+		bananaCount,
+		globalEnemiesLevel
+	)
+end)
 
 Players.PlayerAdded:Connect(function(player)
 	print(player.Name .. " has joined the game")
-
 	SetupPlayer(player)
-	EquipDefaultWeapon(player)
 
-	-- Send Current Stage Infos
-	Events.StageInfo:FireClient(player, MapGenerator[0])
+	task.wait(player:LoadCharacterAsync())
 
 	local character = player.Character
 	local root = character:FindFirstChild("HumanoidRootPart")
+
+	EquipDefaultWeapon(player)
+
+	character.Humanoid.Died:Connect(function()
+		OnPlayerDeath(player)
+	end)
+
+	-- Send Current Stage Infos
+	Events.StageData:FireClient(player, MapGenerator.stageEventsNbr)
 
 	RunService.Heartbeat:Connect(function()
 		-- Limit Velocity
@@ -158,18 +225,13 @@ Players.PlayerAdded:Connect(function(player)
 
 		if flatPos.Magnitude > MAX_DISTANCE then -- TODO : Squared Magnitude
 			character:PivotTo(CFrame.new(Vector3.zero))
-			root.AssemblyLinearVelocity = Vector3.zero -- Kill the momentum
+			root.AssemblyLinearVelocity = Vector3.zero -- Reset momentum
 		end
 	end)
-
-	-- TODO : At the end of the Game
-	-- local killsData = leaderstats:WaitForChild("KillsData")
-	-- killsData.Changed:Connect(function()
-	-- 	KillsData:SetAsync(player.UserId, killsData.Value)
-	-- end)
-
-	-- Find max Kills & Destruction Value
-	-- use pcall
 end)
+
+-- DO
+
+RunService.Heartbeat:Connect(XpGrabRange)
 
 MapGenerator.StartStage()

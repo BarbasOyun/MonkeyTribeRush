@@ -9,6 +9,7 @@ end
 --print("Server Events module loaded")
 
 return {
+	EnemiesLevel = createServerEvent("EnemiesLevel"),
 	EnemySpawned = createServerEvent("EnemySpawned"),
 	StageChanged = createServerEvent("StageChanged"),
 	SwarmEvent = createServerEvent("SwarmEvent"),

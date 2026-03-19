@@ -9,6 +9,16 @@ local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 -- local Events = ReplicatedStorage.Shared
 
+-- Enemies Spawn
+local streamSpawnDeltaTime = 8
+local streamSpawnDeltaTimeRange = 2
+local streamSpawnNbr = 1
+local streamSpawnNbrRange = 1
+
+local swarmWaves = 4
+local swarmNbr = 4
+local swarmNbrRange = 2
+
 -- Enemies
 local ENEMY_FOLDER = workspace.WeaponHit.Enemies
 local MAX_ENEMIES = 200
@@ -16,23 +26,35 @@ local MAX_ENEMIES = 200
 local enemies = {}
 local moveToTasks = {}
 
-local scaleSpeed = 1 -- How much stats does the Robots Get over time
+-- Scaling
+-- local globalEnemiesLevel = 1
+local enemyDeathCount = 0
+local HP_INCREMENT = 1
+local ATTACK_DAMAGE_INCREMENT = 0.1
+local MOVEMENT_SPEED_INCREMENT = 0.1
 
--- Attack
 -- TODO : Move Enemy stats in File
-local ATTACK_RANGE = 4
--- local ATTACK_RANGE_SQ = ATTACK_RANGE ^ 2 -- 16
-local ATTACK_COOLDOWN = 1 -- Seconds
+-- UTILS
+local MOVEMENT_SPEED_CAP = 16
+local movementSpeed = 8
+
+-- DEFENSE
+local hp = 50
+
+-- OFFENSE
 local FRAME_CHECK_DELTA = 5 -- Frames between every Distance Check
-local attackFrameCount = 1
+local ATTACK_RANGE = 4
+local ATTACK_COOLDOWN = 1 -- Seconds
 
+local attackFrameCount = 0
 local attackDmg = 1
-
-local attacked = {}
+local attackCooldowns = {}
 
 local params = OverlapParams.new()
 params.FilterDescendantsInstances = { ENEMY_FOLDER }
 params.FilterType = Enum.RaycastFilterType.Include
+
+-- Utils
 
 local function CreatePlayerPath(enemyPos, playerPos)
 	local path = PathfindingService:CreatePath()
@@ -72,6 +94,60 @@ local function getNearestPlayer(enemyPosition)
 
 	return closestPlayer
 end
+
+local function ApplyStats(enemy)
+	-- UTILS
+	enemy.Humanoid.WalkSpeed = movementSpeed
+
+	-- DEFENSE
+	local hpDelta = hp - enemy.Humanoid.MaxHealth -- Frustrating?
+	enemy.Humanoid.Health += hpDelta
+	enemy.Humanoid.MaxHealth = hp
+end
+
+local function ScaleEnemies()
+	-- Change Init Stats
+	movementSpeed = math.clamp(movementSpeed + MOVEMENT_SPEED_INCREMENT, 8, MOVEMENT_SPEED_CAP)
+
+	hp += HP_INCREMENT
+
+	attackDmg += ATTACK_DAMAGE_INCREMENT
+
+	-- Update All In Game Enemies
+	for _, enemy in ipairs(enemies) do
+		ApplyStats(enemy)
+		-- enemy.Humanoid.WalkSpeed = movementSpeed
+	end
+
+	-- globalEnemiesLevel += 1
+	-- Events.EnemyLevelUp:FireAllClients(globalEnemiesLevel)
+
+	ServerEvents.EnemiesLevel:Fire()
+end
+
+local function SetupEnemy(enemy)
+	table.insert(enemies, enemy)
+
+	ApplyStats(enemy)
+
+	enemy.Parent = ENEMY_FOLDER
+	enemy.Humanoid.Died:Connect(function()
+		Gears.SpawnXP(enemy.PrimaryPart.Position)
+		-- task.wait(2)
+		local index = table.find(enemies, enemy)
+		table.remove(enemies, index)
+		attackCooldowns[enemy] = nil
+		enemy:Destroy()
+
+		enemyDeathCount += 1
+		if enemyDeathCount >= 30 then
+			ScaleEnemies()
+			enemyDeathCount = 0
+		end
+	end)
+end
+
+-- Behaviour
 
 -- Pathfinding
 local function RunAtPlayer()
@@ -139,34 +215,83 @@ local function MoveToPlayer()
 	MoveToPlayer()
 end
 
-local function SetupEnemy(enemy)
-	table.insert(enemies, enemy)
-	enemy.Parent = ENEMY_FOLDER
+local function AttacksCooldown()
+	for enemy, time in pairs(attackCooldowns) do
+		local attackDelta = tick() - time
+		-- print("Attack Delta = " .. attackDelta)
 
-	enemy.Humanoid.Died:Connect(function()
-		Gears.SpawnXP(enemy.PrimaryPart.Position)
-		-- task.wait(2)
-		enemy:Destroy()
-	end)
+		if attackDelta > ATTACK_COOLDOWN then
+			attackCooldowns[enemy] = nil
+		end
+	end
 end
+
+local function Attacks()
+	if attackFrameCount < FRAME_CHECK_DELTA then
+		attackFrameCount += 1
+		return
+	end
+
+	attackFrameCount = 0
+
+	AttacksCooldown()
+
+	local humanoidsHit = {}
+
+	-- Hit Detection
+	-- Draw Sphere around each Players
+	for _, player in ipairs(Players:GetPlayers()) do
+		if not player.Character or PlayersStats[player.UserId].pickingAugment then -- Prevents attacks when picking augments
+			continue
+		end
+
+		local root = player.Character.HumanoidRootPart
+		local hitEnemies = workspace:GetPartBoundsInRadius(root.Position, ATTACK_RANGE, params)
+		-- DEBUG
+		-- Gears.ExecuteFor(0.3, function()
+		-- 	Gears.DrawCircle(root.Position, Gears.CirclePoints(ATTACK_RANGE, 20))
+		-- end)
+
+		for _, part in ipairs(hitEnemies) do
+			local enemyModel = part.Parent
+
+			if
+				table.find(humanoidsHit, enemyModel)
+				or attackCooldowns[enemyModel]
+				or enemyModel.Humanoid.Health <= 0
+			then
+				continue
+			end
+
+			-- Attack
+			table.insert(humanoidsHit, enemyModel)
+			attackCooldowns[enemyModel] = tick()
+
+			enemyModel.Humanoid:MoveTo(enemyModel.HumanoidRootPart.Position) -- Stop movement
+			player.Character.Humanoid:TakeDamage(attackDmg)
+		end
+	end
+end
+
+-- Spawn
 
 local function StreamSpawn() -- Spawn Enemies constantly
 	if #enemies >= MAX_ENEMIES then
 		return
 	end
 
-	local spawnDelta = math.random(7, 10)
+	local spawnDelta = math.random(streamSpawnDeltaTime, streamSpawnDeltaTime + streamSpawnDeltaTimeRange)
 	task.wait(spawnDelta)
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		local enemyNbr = math.random(1, 2)
+		local enemyNbr = math.random(streamSpawnNbr, streamSpawnNbr + streamSpawnNbrRange)
 
 		for _ = 1, enemyNbr, 1 do
 			Gears.SpawnEnemyCircle(player.Character.PrimaryPart.Position)
 		end
-
-		StreamSpawn()
 	end
+
+	StreamSpawn()
 end
 
 local function SwarmSpawn() -- Spawn Big wave of Enemies
@@ -174,13 +299,11 @@ local function SwarmSpawn() -- Spawn Big wave of Enemies
 		return
 	end
 
-	local innerWaves = 5
-
-	for _ = 0, innerWaves, 1 do
+	for _ = 0, swarmWaves, 1 do
 		for _, player in ipairs(Players:GetPlayers()) do
-			local enemyNbr = math.random(5, 7)
+			local enemyNbr = math.random(swarmNbr, swarmNbr + swarmNbrRange)
 			local radius = math.random(60, 120)
-			local progress = Gears.FloatRandom(0, math.rad(360)) -- math.pi * 2
+			local progress = Gears.FloatRandom(0, math.pi * 2) -- math.rad(360)
 			local circlePos = Gears.CirclePos(radius, progress)
 			local finalPos = player.Character.PrimaryPart.Position + Vector3.new(circlePos.X, 0, circlePos.Y)
 
@@ -204,60 +327,22 @@ ServerEvents.SwarmEvent.Event:Connect(function()
 end)
 
 ServerEvents.StageChanged.Event:Connect(function()
+	-- MapGenerator Called ClearMap
 	table.clear(enemies)
 end)
 
 -- Do
--- Enemies Attacks
-RunService.Heartbeat:Connect(function()
-	if attackFrameCount < FRAME_CHECK_DELTA then
-		attackFrameCount += 1
-		return
-	end
-
-	attackFrameCount = 0
-
-	-- Attack Cooldown
-	for enemy, time in ipairs(attacked) do
-		local attackDelta = tick() - time
-		print("Attack Delta = " .. attackDelta)
-
-		if attackDelta > ATTACK_COOLDOWN then
-			table.remove(attacked, enemy)
-		end
-	end
-
-	local humanoidsHit = {}
-
-	-- Hit Detection
-	-- Draw Sphere around each Players
-	for _, player in ipairs(Players:GetPlayers()) do
-		if not player.Character then
-			continue
-		end
-
-		local root = player.Character.HumanoidRootPart
-		local hitEnemies = workspace:GetPartBoundsInRadius(root.Position, ATTACK_RANGE, params)
-
-		for _, part in ipairs(hitEnemies) do
-			local enemyModel = part.Parent
-
-			if table.find(humanoidsHit, enemyModel) or attacked[enemyModel] then
-				continue
-			end
-
-			table.insert(humanoidsHit, enemyModel)
-			attacked[enemyModel] = tick()
-
-			-- DMG
-			enemyModel.Humanoid:MoveTo(enemyModel.HumanoidRootPart.Position) -- Stop
-			player.Character.Humanoid:TakeDamage(attackDmg)
-		end
-	end
-end)
-
 task.spawn(function()
 	StreamSpawn()
 end)
+
+-- task.spawn(function()
+-- 	ScaleEnemies()
+-- end)
+
+RunService.Heartbeat:Connect(function()
+	Attacks()
+end)
+
 --RunAtPlayer()
 MoveToPlayer()
