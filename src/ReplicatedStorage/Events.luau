@@ -16,7 +16,6 @@ return {
 	Reroll = createRemoteEvent("Reroll"),
 	AugmentPick = createRemoteEvent("AugmentPick"),
 	XpPickup = createRemoteEvent("XpPickup"),
-	BananaPickup = createRemoteEvent("BananaPickup"),
 	StageProgress = createRemoteEvent("StageProgress"),
 	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),
 	NextStageTimerTick = createRemoteEvent("NextStageTimerTick"),

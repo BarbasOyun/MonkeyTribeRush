@@ -7,9 +7,8 @@ return {
 		Epic = Color3.fromRGB(116, 2, 116),
 		Legendary = Color3.fromRGB(211, 4, 4),
 	},
-	-- weights = { 200, 100, 50, 20, 5 }, -- 375 Total
 	baseLuckValue = 200,
-	luckPoints = { 0, 100, 150, 180, 195 },
+	luckPoints = { 0, 75, 150, 180, 195 },
 	augmentType = {
 		"attackDamage",
 		"attackSpeed",

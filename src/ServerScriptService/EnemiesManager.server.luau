@@ -1,5 +1,4 @@
 local ServerScriptService = game:GetService("ServerScriptService")
--- local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -7,12 +6,12 @@ local Players = game:GetService("Players")
 local Gears = require(ServerScriptService.Server.Gears)
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
--- local Events = ReplicatedStorage.Shared
 
 -- Enemies Spawn
-local streamSpawnDeltaTime = 8
+--local targetEnemiesNbr = 5 -- TODO : AI Director
+local streamSpawnDeltaTime = 7
 local streamSpawnDeltaTimeRange = 2
-local streamSpawnNbr = 1
+local streamSpawnNbr = 2
 local streamSpawnNbrRange = 1
 
 local swarmWaves = 4
@@ -27,11 +26,12 @@ local enemies = {}
 local moveToTasks = {}
 
 -- Scaling
--- local globalEnemiesLevel = 1
+local globalEnemiesLevel = 1
 local enemyDeathCount = 0
-local HP_INCREMENT = 1
-local ATTACK_DAMAGE_INCREMENT = 0.1
-local MOVEMENT_SPEED_INCREMENT = 0.1
+local HP_INCREMENT = 2
+local ATTACK_DAMAGE_INCREMENT = 0.2
+local MOVEMENT_SPEED_INCREMENT = 0.2
+local LVL_NBR_INCREMENT_STREAM_SPAWN = 10
 
 -- TODO : Move Enemy stats in File
 -- UTILS
@@ -100,7 +100,7 @@ local function ApplyStats(enemy)
 	enemy.Humanoid.WalkSpeed = movementSpeed
 
 	-- DEFENSE
-	local hpDelta = hp - enemy.Humanoid.MaxHealth -- Frustrating?
+	local hpDelta = hp - enemy.Humanoid.MaxHealth
 	enemy.Humanoid.Health += hpDelta
 	enemy.Humanoid.MaxHealth = hp
 end
@@ -116,11 +116,13 @@ local function ScaleEnemies()
 	-- Update All In Game Enemies
 	for _, enemy in ipairs(enemies) do
 		ApplyStats(enemy)
-		-- enemy.Humanoid.WalkSpeed = movementSpeed
 	end
 
-	-- globalEnemiesLevel += 1
-	-- Events.EnemyLevelUp:FireAllClients(globalEnemiesLevel)
+	globalEnemiesLevel += 1
+
+	if globalEnemiesLevel % LVL_NBR_INCREMENT_STREAM_SPAWN == 0 then
+		streamSpawnNbr += 1 -- TODO : Add Variable
+	end
 
 	ServerEvents.EnemiesLevel:Fire()
 end
@@ -133,7 +135,8 @@ local function SetupEnemy(enemy)
 	enemy.Parent = ENEMY_FOLDER
 	enemy.Humanoid.Died:Connect(function()
 		Gears.SpawnXP(enemy.PrimaryPart.Position)
-		-- task.wait(2)
+
+		-- Cleanup
 		local index = table.find(enemies, enemy)
 		table.remove(enemies, index)
 		attackCooldowns[enemy] = nil
@@ -284,6 +287,10 @@ local function StreamSpawn() -- Spawn Enemies constantly
 	task.wait(spawnDelta)
 
 	for _, player in ipairs(Players:GetPlayers()) do
+		if not player.Character then
+			continue
+		end
+
 		local enemyNbr = math.random(streamSpawnNbr, streamSpawnNbr + streamSpawnNbrRange)
 
 		for _ = 1, enemyNbr, 1 do
@@ -294,7 +301,7 @@ local function StreamSpawn() -- Spawn Enemies constantly
 	StreamSpawn()
 end
 
-local function SwarmSpawn() -- Spawn Big wave of Enemies
+local function SwarmSpawn() -- Spawn Big waves of Enemies
 	if #enemies >= MAX_ENEMIES then
 		return
 	end
@@ -335,10 +342,6 @@ end)
 task.spawn(function()
 	StreamSpawn()
 end)
-
--- task.spawn(function()
--- 	ScaleEnemies()
--- end)
 
 RunService.Heartbeat:Connect(function()
 	Attacks()

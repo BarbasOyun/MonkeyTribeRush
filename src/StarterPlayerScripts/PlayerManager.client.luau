@@ -18,12 +18,13 @@ local augmentPick = Events.AugmentPick
 local stageProgress = Events.StageProgress
 
 -- UI
---local playerGui = player:WaitForChild("PlayerGui")
-local playerGui = player.PlayerGui
+local playerGui = player:WaitForChild("PlayerGui")
+-- local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos.XpBarCurrent
 local xpBarMax = uiInfos.XpBarMax
+local bananas = uiInfos.Bananas
 
 -- Main UI
 local mainGui = playerGui:WaitForChild("MainGui")
@@ -179,6 +180,7 @@ local function UpdateXpBar()
 end
 
 local function SetupStageEventsUI(stageEventsNbr)
+	-- print("Create " .. stageEventsNbr .. " Events")
 	local adjusted = stageEventsNbr + 1
 	for i = 1, stageEventsNbr, 1 do
 		local swarmIcon = swarmSkull:clone()
@@ -274,10 +276,15 @@ end)
 -- Player Events
 player.CharacterAdded:Connect(onCharacterAdded)
 
-xpBarCurrent.Changed:Connect(UpdateXpBar) -- TODO : Delete
+xpBarCurrent.Changed:Connect(UpdateXpBar)
 xpBarMax.Changed:Connect(UpdateXpBar)
 Events.XpPickup.OnClientEvent:Connect(function()
 	getXPSound:Play()
+end)
+
+-- Bananas
+bananas.Changed:Connect(function()
+	bananaText.Text = bananas.Value
 end)
 
 levelUpEvent.OnClientEvent:Connect(OnLevelUp)
@@ -287,20 +294,18 @@ augmentPick.OnClientEvent:Connect(AugmentPickResponse)
 
 -- Death
 Events.PlayerDied.OnClientEvent:Connect(function()
+	print("Death Event")
 	deathUI.Visible = true
 end)
 
 -- Stage Events
 
 -- Get Full Stage Data -> StageEvents, StageProgress, Bananas, EnemiesLevel
-Events.GetFullStageData.OnClientEvent:Connect(
-	function(stageEventsNbr, stageBarProgress, bananasCount, globalEnemiesLevel)
-		SetupStageEventsUI(stageEventsNbr)
-		UpdateBar(stageProgressBar, stageBarProgress)
-		bananaText.Text = bananasCount
-		robotLvlText.Text = "Lvl " .. globalEnemiesLevel
-	end
-)
+Events.GetFullStageData.OnClientEvent:Connect(function(stageEventsNbr, stageBarProgress, globalEnemiesLevel)
+	SetupStageEventsUI(stageEventsNbr)
+	UpdateBar(stageProgressBar, stageBarProgress)
+	robotLvlText.Text = "Lvl " .. globalEnemiesLevel
+end)
 
 -- StageEvents
 Events.StageData.OnClientEvent:Connect(function(stageEventsNbr)
@@ -310,11 +315,6 @@ end)
 -- Stage Progress
 stageProgress.OnClientEvent:Connect(function(progress)
 	UpdateBar(stageProgressBar, progress)
-end)
-
--- Bananas
-Events.BananaPickup.OnClientEvent:Connect(function(bananasCount)
-	bananaText.Text = bananasCount
 end)
 
 -- Enemies Lvl

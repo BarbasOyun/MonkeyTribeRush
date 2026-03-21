@@ -1,7 +1,7 @@
 return {
 	["IronMace"] = {
 		WeaponType = "Mace",
-		BaseDamage = 30,
+		BaseDamage = 35,
 		AttackSpeed = 0.8,
 		Range = 10,
 	},
@@ -19,7 +19,7 @@ return {
 	},
 	["WoodenClub"] = {
 		WeaponType = "Mace",
-		BaseDamage = 20,
+		BaseDamage = 25,
 		AttackSpeed = 0.7,
 		Range = 8,
 	},

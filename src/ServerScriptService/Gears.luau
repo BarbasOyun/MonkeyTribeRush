@@ -1,11 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local Players = game:GetService("Players")
-
-local DataStoreService = game:GetService("DataStoreService")
-local KillsData = DataStoreService:GetOrderedDataStore("Wins")
-local BananasData = DataStoreService:GetDataStore("Bananas")
 
 local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 
@@ -16,6 +11,7 @@ local mapLimits = { X = Vector2.new(-290, 290), Z = Vector2.new(-190, 190) } -- 
 -- Prefabs
 local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb
 local banana = ReplicatedStorage.Prefabs.Banana
+local stick = ReplicatedStorage.Prefabs.Stick
 local enemy = ReplicatedStorage.Prefabs.Robot
 
 function gears.ExecuteFor(duration, lambda)
@@ -26,6 +22,22 @@ function gears.ExecuteFor(duration, lambda)
 	task.delay(duration, function()
 		execute:Disconnect()
 	end)
+end
+
+function gears.waitUntil(condition)
+	local startTime = tick()
+	local timeout = 10
+
+	while not condition() do
+		task.wait()
+
+		if tick() - startTime > timeout then
+			warn("waitUntil timed out!")
+			return false
+		end
+	end
+
+	return true
 end
 
 function gears.DrawSphere(position, radius, color)
@@ -139,6 +151,8 @@ function gears.SpherePos(latitude, longitude, radius)
 	return Vector3.new(x, y, z) -- Add to a position
 end
 
+-- Game Manager
+
 function gears.LootMovement(item, startPos)
 	item.Position = startPos
 	item.Parent = workspace
@@ -177,6 +191,13 @@ function gears.SpawnBanana(spawnPosition)
 	gears.LootMovement(newBanana, spawnPosition)
 end
 
+function gears.SpawnStick(spawnPosition)
+	-- print("Spawn Banana")
+	local newStick = stick:Clone()
+
+	gears.LootMovement(newStick, spawnPosition)
+end
+
 function gears.SpawnEnemyCircle(basePosition) -- TODO : Move to Enemy Service
 	local radius = math.random(60, 120)
 	local progress = gears.FloatRandom(0, math.rad(360)) -- math.pi * 2
@@ -204,22 +225,6 @@ function gears.GetPartCount(parentObject)
 	end
 
 	return count
-end
-
-function gears.SaveData(kills, destruction, bananas)
-	-- Save Data : Kills, Destruction, Bananas -> use pcall
-	-- Cap Data to max
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		print("Save Data for : " .. player.Name)
-		-- print(player.leaderstats)
-		-- BananasData:IncrementAsync(player.UserId, 1)
-
-		-- local killsData = leaderstats:WaitForChild("KillsData")
-		-- killsData.Changed:Connect(function()
-		-- 	KillsData:SetAsync(player.UserId, killsData.Value)
-		-- end)
-	end
 end
 
 function gears.SumTable(t)

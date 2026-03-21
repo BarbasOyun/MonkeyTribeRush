@@ -44,7 +44,9 @@ local defaultStats = {
 	critMultiplier = 50,
 	weaponInfo = nil,
 	kills = nil,
+	highestKills = 0,
 	bananas = nil,
+	storedBananas = 0, -- Amount of bananas sent to DataStore
 }
 
 -- TODO : Implement
@@ -71,13 +73,11 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	local kills = Instance.new("IntValue")
 	kills.Parent = leaderstats
 	kills.Name = "Kills"
-	-- kills.Value = 0
 	playerStat.kills = kills
 
 	local destruction = Instance.new("IntValue")
 	destruction.Parent = leaderstats
 	destruction.Name = "Destruction"
-	-- destruction.Value = 0
 	playerStat.destruction = destruction
 
 	-- UI Info
@@ -92,7 +92,6 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	xpBarMax.Value = 50
 	playerStat.levelUpXp = xpBarMax
 
-	-- TODO Remove
 	local bananas = Instance.new("IntValue")
 	bananas.Parent = uiInfos
 	bananas.Name = "Bananas"
@@ -136,7 +135,7 @@ function playersStats.ApplyStats(player)
 	-- Calculate each stat on this stat changed
 	local playerStat = playersStats[player.UserId]
 	local character = player.Character or player.CharacterAdded:Wait()
-	local humanoid = character:WaitForChild("Humanoid")
+	local humanoid = character.Humanoid
 
 	-- UTILS
 	humanoid.WalkSpeed = playerStat.mobility
@@ -225,10 +224,11 @@ function playersStats.RollAugments(luck)
 		local rarity = FindRarity()
 
 		local function FindAugment()
-			local augmentRoll = math.random(1, #Augments.augmentType - 1)
+			local augmentRoll = math.random(1, #Augments.augmentType)
 			local augmentType = Augments.augmentType[augmentRoll]
-			local augmentValue = Augments[augmentType][rarity] -- augmentType
+			local augmentValue = Augments[augmentType][rarity]
 
+			-- TODO Find List of Possible Augments
 			if not augmentValue then
 				-- print(augmentType .. " Doesn't have : " .. rarity .. " Version")
 				return FindAugment()
@@ -240,9 +240,10 @@ function playersStats.RollAugments(luck)
 		return FindAugment()
 	end
 
-	local augmentsChoice = { GetAugment(), GetAugment(), GetAugment() }
+	-- TODO : Luck Protection
+	local augmentChoices = { GetAugment(), GetAugment(), GetAugment() }
 
-	return augmentsChoice
+	return augmentChoices
 end
 
 function playersStats.SendAugment(player, playerStat)
@@ -284,8 +285,13 @@ function playersStats.AddXp(xpValue)
 	end
 end
 
--- Start Augment Pick -> Set Player State
-augmentPick.OnServerEvent:Connect(function(player)
+function playersStats.AddBananas(bananas)
+	for _, player in pairs(Players:GetPlayers()) do
+		playersStats[player.UserId].bananas.Value += bananas
+	end
+end
+
+local function StartAugmentPick(player)
 	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
@@ -297,10 +303,14 @@ augmentPick.OnServerEvent:Connect(function(player)
 	playerStats.pickingAugment = true
 
 	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
-end)
+end
 
--- Augment Choice Made
-levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
+function playersStats.AddStat(player, playerStat, type, value)
+	playerStat[type] += value
+	playersStats.ApplyStats(player)
+end
+
+local function AugmentPick(player, choiceNbr)
 	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
@@ -311,14 +321,14 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 	local playerStat = playersStats[player.UserId]
 	playerStat.level += 1
 	playerStat.waitingLevel -= 1
-	-- levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
 	augmentPick:FireClient(player, playerStat.level, playerStat.waitingLevel)
 
 	--Add Augment Stats
 	local augment = currentAugments[player.UserId][choiceNbr]
-	playerStat[augment[1]] += augment[3] -- augmentType and augmentValue
+	-- Check Augment Or Artifact -> #augment
+
+	playersStats.AddStat(player, playerStat, augment[1], augment[3]) -- Augment Type & Value
 	currentAugments[player.UserId] = nil
-	playersStats.ApplyStats(player)
 
 	-- Additional Levels
 	if playerStat.waitingLevel > 0 then
@@ -330,6 +340,14 @@ levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
 	player.Character:MoveTo(positionStart[player.UserId])
 	positionStart[player.UserId] = nil
 	playersStats[player.UserId].pickingAugment = false
+end
+
+augmentPick.OnServerEvent:Connect(function(player)
+	StartAugmentPick(player)
+end)
+
+levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
+	AugmentPick(player, choiceNbr)
 end)
 
 rerollEvent.OnServerEvent:Connect(function(player)

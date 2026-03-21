@@ -8,17 +8,16 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
--- local TeleportService = game:GetService("TeleportService")
--- local SafeTeleport = require(game.ReplicatedStorage:WaitForChild("SafeTeleport"))
-local SafeTeleport = ReplicatedStorage.Shared.SafeTeleport
-
-local hubPlaceId = 92891776561997
-
-local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local Gears = require(ServerScriptService.Server.Gears)
+local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local ServerEvents = ServerScriptService.Server
 local Events = ReplicatedStorage.Shared
+
+local SafeTeleport = ReplicatedStorage.Shared.SafeTeleport
+local hubPlaceId = 92891776561997
+
+local globalEnemiesLevel = 1 -- TODO : Refactor
 
 -- Players
 local FULL_STAGE_DATA_CD = 10 -- sec
@@ -30,9 +29,6 @@ local deadPlayers = {}
 -- local MAX_SPEED = 100
 local MAX_DISTANCE = 250
 
-local bananaCount = 0
-local globalEnemiesLevel = 1
-
 local XP_FRAME = 5 -- Gather xp Every X Frame
 local frameCount = 0
 
@@ -42,18 +38,67 @@ xpPickupParam.FilterType = Enum.RaycastFilterType.Include
 xpPickupParam.FilterDescendantsInstances = { workspace.XP_Orbs }
 xpPickupParam.MaxParts = 50
 
+local function SaveData()
+	-- Save Data : Kills, Destruction, Bananas -> use pcall
+	-- Cap Data to max
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		print("Save Data for : " .. player.Name)
+
+		local playerStats = PlayersStats[player.UserId]
+
+		local bananasDelta = playerStats.bananas.Value - playerStats.storedBananas
+		local kills = player.leaderstats.Kills
+		-- local destruction = player.leaderstats.Destruction -- TODO : Save Destruction
+
+		BananasData:IncrementAsync(player.UserId, bananasDelta)
+		playerStats.storedBananas = bananasDelta
+		print("Bananas Added : " .. bananasDelta)
+
+		if kills > playerStats.highestKills then
+			print("Save Kills Value")
+			playerStats.highestKills = kills
+			KillsData:SetAsync(player.UserId, kills)
+		end
+	end
+end
+
+local function ResetData()
+	for _, player in ipairs(Players:GetPlayers()) do
+		KillsData:SetAsync(player.UserId, 0)
+		BananasData:SetAsync(player.UserId, 0)
+	end
+end
+
+local function SetupPlayer(player)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Parent = player
+	leaderstats.Name = "leaderstats"
+
+	local uiInfos = Instance.new("Folder")
+	uiInfos.Parent = player
+	uiInfos.Name = "UIInfos"
+
+	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
+
+	local playerStat = PlayersStats[player.UserId]
+	local kills = KillsData:GetAsync(player.UserId)
+	playerStat.highestKills = kills
+
+	-- Get Player's UpgradeTree
+	-- PlayersStats.AddStat(player, PlayersStats[player.UserId], type, value)
+end
+
 local function EquipDefaultWeapon(player)
 	local humanoid = player.Character:FindFirstChild("Humanoid")
-	if not humanoid then
-		return
-	end
-
 	local backpack = player:FindFirstChild("Backpack")
-	if not backpack then
+
+	if not humanoid or not backpack then
 		return
 	end
 
 	local defaultTool = backpack:FindFirstChild("WoodenClub")
+	-- print("Equip Default tool : " .. defaultTool)
 	if defaultTool then
 		humanoid:EquipTool(defaultTool)
 	end
@@ -61,7 +106,7 @@ end
 
 local function GameOver()
 	print("Game Over -> Going back to Hub")
-	Gears.SaveData()
+	SaveData()
 	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
 		return SafeTeleport(hubPlaceId, { Players:GetPlayers() })
 	end)
@@ -77,46 +122,35 @@ local function OnPlayerDeath(player)
 	end
 end
 
-local function SetupPlayer(player)
-	local leaderstats = Instance.new("Folder")
-	leaderstats.Parent = player
-	leaderstats.Name = "leaderstats"
-
-	local uiInfos = Instance.new("Folder")
-	uiInfos.Parent = player
-	uiInfos.Name = "UIInfos"
-
-	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
-end
-
-local function GetXp(xpOrb, player)
-	if xpOrb.Name == "SmallXpOrb" then
+local function GetOrb(orb, player)
+	if orb.Name == "SmallXpOrb" then
 		-- print("Add Small XP Orb")
 		PlayersStats.AddXp(10)
-	elseif xpOrb.Name == "Banana" then
-		bananaCount += 1
-		Events.BananaPickup:FireAllClients(bananaCount)
+	elseif orb.Name == "Banana" then
+		-- bananaCount += 1
+		-- Events.BananaPickup:FireAllClients(bananaCount)
+		PlayersStats.AddBananas(1)
 	end
 
 	Events.XpPickup:FireClient(player)
-	xpOrb:Destroy()
+	orb:Destroy()
 end
 
-local function GrabXp(character, xpOrb, player)
+local function GrabOrb(character, orb, player)
 	-- print("xpOrb Found")
-	if not xpOrb.Parent then
+	if not orb.Parent then
 		return
 	end
 
-	if xpOrb.Parent ~= workspace.XP_Orbs then
+	if orb.Parent ~= workspace.XP_Orbs then
 		return
 	end
 
-	xpOrb.Parent = game.Workspace
-	xpOrb.CanCollide = false
+	orb.Parent = game.Workspace
+	orb.CanCollide = false
 
-	-- Lerp XP
-	local startPos = xpOrb.CFrame
+	-- Lerp Orb
+	local startPos = orb.CFrame
 
 	local steps = 30
 	local progress = 0
@@ -126,14 +160,14 @@ local function GrabXp(character, xpOrb, player)
 	for _ = 1, steps do
 		progress += speed
 		speed += acceleration
-		xpOrb.CFrame = startPos:Lerp(character:GetPivot(), progress)
+		orb.CFrame = startPos:Lerp(character:GetPivot(), progress)
 		RunService.Heartbeat:Wait()
 	end
 
-	GetXp(xpOrb, player)
+	GetOrb(orb, player)
 end
 
-local function XpGrabRange()
+local function PickupRange()
 	if frameCount < XP_FRAME then
 		frameCount += 1
 		return
@@ -153,10 +187,12 @@ local function XpGrabRange()
 		local position = character.HumanoidRootPart.CFrame.Position
 		local range = playerStats.finalPickupRange
 
+		-- DEBUG
 		-- Gears.DisplayHitBox(position, range, 0.1)
-		local xpOrbs = workspace:GetPartBoundsInRadius(position, range, xpPickupParam)
-		for _, xpOrb in ipairs(xpOrbs) do
-			GrabXp(character, xpOrb, player)
+
+		local orbs = workspace:GetPartBoundsInRadius(position, range, xpPickupParam)
+		for _, orb in ipairs(orbs) do
+			GrabOrb(character, orb, player)
 		end
 	end
 end
@@ -169,8 +205,9 @@ ServerEvents.EnemiesLevel.Event:Connect(function()
 	Events.EnemyLevelUp:FireAllClients(globalEnemiesLevel)
 end)
 
--- Respawn on new Stage
+-- Save + Respawn on new Stage
 ServerEvents.StageChanged.Event:Connect(function()
+	SaveData()
 	for _, player in ipairs(deadPlayers) do
 		player:LoadCharacter()
 	end
@@ -187,28 +224,39 @@ Events.GetFullStageData.OnServerEvent:Connect(function(player)
 		player,
 		MapGenerator.stageEventsNbr,
 		MapGenerator.stageProgress,
-		bananaCount,
 		globalEnemiesLevel
 	)
 end)
 
 Players.PlayerAdded:Connect(function(player)
 	print(player.Name .. " has joined the game")
-	SetupPlayer(player)
 
-	task.wait(player:LoadCharacterAsync())
+	task.spawn(function()
+		SetupPlayer(player)
+	end)
+
+	player:LoadCharacterAsync()
+	-- Gears.waitUntil(function()
+	-- 	return player.Character
+	-- end)
 
 	local character = player.Character
 	local root = character:FindFirstChild("HumanoidRootPart")
 
 	EquipDefaultWeapon(player)
 
+	-- On Death
 	character.Humanoid.Died:Connect(function()
 		OnPlayerDeath(player)
 	end)
 
-	-- Send Current Stage Infos
-	Events.StageData:FireClient(player, MapGenerator.stageEventsNbr)
+	-- Send Current Stage Data -> Players joining mid game
+	Events.GetFullStageData:FireClient(
+		player,
+		MapGenerator.stageEventsNbr,
+		MapGenerator.stageProgress,
+		globalEnemiesLevel
+	)
 
 	RunService.Heartbeat:Connect(function()
 		-- Limit Velocity
@@ -232,6 +280,6 @@ end)
 
 -- DO
 
-RunService.Heartbeat:Connect(XpGrabRange)
+RunService.Heartbeat:Connect(PickupRange)
 
 MapGenerator.StartStage()

@@ -35,6 +35,9 @@ local mapsMusics = {
 	ReplicatedStorage.Prefabs.ResearchMapMusic,
 }
 
+-- Weapons Prefabs
+local weapons = { ReplicatedStorage.Prefabs.IronAxe, ReplicatedStorage.Prefabs.IronMace }
+
 -- Stage
 local MINIMUM_RADIUS = 40
 local SPAWN_POS = Vector2.new(0, 170)
@@ -166,11 +169,23 @@ function mapGenerator.GenerateMap(stageRadiusSize, mapId, buildingNbr)
 	-- 	Gears.DrawCircle(Vector3.new(SPAWN_POS.X, 3, SPAWN_POS.Y), Gears.CirclePoints(MINIMUM_RADIUS, CIRCLE_DIVISION)) -- Min Radius
 	-- end)
 
+	local weaponCount = 0
+
 	-- Instantiate Buildings
 	for i in nodesPos do
 		local building = nodesBuilding[i].prefab:clone()
 		building:PivotTo(CFrame.new(nodesPos[i].X, building:GetPivot().Position.Y, nodesPos[i].Y))
 		building.Parent = weaponHitFolder
+
+		-- Generate Weapons
+		weaponCount += 1
+		if weaponCount >= 3 then
+			local weaponRoll = math.random(1, #weapons)
+			local weapon = weapons[weaponRoll]:clone()
+			weapon.Parent = workspace
+			weapon.Handle.CFrame = CFrame.new(building:GetPivot().Position) -- Set Parent -> Set Position = Work with Weld
+			weaponCount = 0
+		end
 
 		-- DEBUG
 		-- RunService.Heartbeat:Connect(function()
@@ -194,16 +209,6 @@ end
 function mapGenerator.FinishStage()
 	print("Stage Finished")
 	currentStage += 1
-
-	task.spawn(function()
-		Gears.SaveData()
-	end)
-
-	-- if currentStage > maxStage then
-	-- 	print("Level Finished -> Going back to Hub")
-	-- 	-- Go Back to Hub
-	-- 	return
-	-- end
 
 	isWaitingForNextStage = true
 	Events.CurrentStageChanged:FireAllClients(currentStage)
@@ -297,7 +302,6 @@ function mapGenerator.StartStage()
 	currentMapId = Gears.LoopValue(currentMapId + 1, #maps, 1)
 
 	mapGenerator.GenerateEvents()
-	Events.StageData:FireAllClients(#stageEvents)
 end
 
 return mapGenerator

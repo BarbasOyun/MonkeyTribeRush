@@ -11,7 +11,11 @@ local WeaponConfig = require(ReplicatedStorage.Shared.Modules.WeaponConfig)
 local Gears = require(ServerScriptService.Server.Gears)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 
-local buildingHitSound = ReplicatedStorage.Prefabs.BuildingHit
+-- Sounds Prefabs
+local slashSoundPrefab = ReplicatedStorage.Prefabs.Slash
+local critSoundPrefab = ReplicatedStorage.Prefabs.CriticalSlash
+local unsheathSoundPrefab = ReplicatedStorage.Prefabs.Unsheath
+local buildingHitSoundPrefab = ReplicatedStorage.Prefabs.BuildingHit
 
 --Remote Events
 local attackEvent = Events.ToolAttack
@@ -87,7 +91,10 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 
 		-- Banana Loot
 		local roll = math.random(0, 100)
-		if roll < 80 then
+		if roll < 70 then
+			if roll > 90 then
+				Gears.SpawnStick()
+			end
 			return
 		end
 
@@ -106,9 +113,9 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	local isBuilding = false
 
 	-- DEBUG
-	Gears.ExecuteFor(0.5, function()
-		Gears.DrawSphere(attackPosition.Position, weaponInfo.range)
-	end)
+	-- Gears.ExecuteFor(0.5, function()
+	-- 	Gears.DrawSphere(attackPosition.Position, weaponInfo.range)
+	-- end)
 
 	for _, hit in ipairs(hits) do
 		-- print("Hit Part: " .. hit.Name)
@@ -257,11 +264,20 @@ local function OnUnequipped(weapon)
 	equipEvent:FireClient(player, false)
 end
 
-local function CreateWeaponInfo(weapon)
+local function CreateWeaponInfo(weapon, weaponTag)
 	local handle = weapon.Handle
 
-	-- Create Sounds
-	local buildingHit = buildingHitSound:clone()
+	-- Create Sounds -> Same Sounds for every weapon
+	local slash = slashSoundPrefab:clone()
+	slash.Parent = handle
+
+	local crit = critSoundPrefab:clone()
+	crit.Parent = handle
+
+	local unsheath = unsheathSoundPrefab:clone()
+	unsheath.Parent = handle
+
+	local buildingHit = buildingHitSoundPrefab:clone()
 	buildingHit.Parent = handle
 
 	local weaponInfo = {
@@ -269,13 +285,13 @@ local function CreateWeaponInfo(weapon)
 		weaponSize = weapon:GetScale(),
 		handle = handle,
 		attackPoint = weapon.Handle.AttackPoint,
-		weaponType = WeaponConfig[weapon.Name].WeaponType,
-		damage = WeaponConfig[weapon.Name].BaseDamage,
-		finalAttackDamage = WeaponConfig[weapon.Name].BaseDamage,
-		range = WeaponConfig[weapon.Name].Range,
-		finalAoe = WeaponConfig[weapon.Name].Range,
-		attackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
-		finalAttackSpeed = WeaponConfig[weapon.Name].AttackSpeed,
+		weaponType = WeaponConfig[weaponTag].WeaponType,
+		damage = WeaponConfig[weaponTag].BaseDamage,
+		finalAttackDamage = WeaponConfig[weaponTag].BaseDamage,
+		range = WeaponConfig[weaponTag].Range,
+		finalAoe = WeaponConfig[weaponTag].Range,
+		attackSpeed = WeaponConfig[weaponTag].AttackSpeed,
+		finalAttackSpeed = WeaponConfig[weaponTag].AttackSpeed,
 		sounds = {
 			unsheath = handle.Unsheath,
 			slash = handle.Slash,
@@ -287,9 +303,9 @@ local function CreateWeaponInfo(weapon)
 	return weaponInfo
 end
 
-local function setupWeapon(weapon)
+local function setupWeapon(weapon, weaponTag)
 	-- Create Weapon Info
-	local weaponInfo = CreateWeaponInfo(weapon)
+	local weaponInfo = CreateWeaponInfo(weapon, weaponTag)
 
 	weapon.Equipped:Connect(function()
 		OnEquipped(weapon, weaponInfo)
@@ -302,10 +318,12 @@ end
 
 local function SetupWeaponInstances(weaponTag)
 	for _, weapon in pairs(CollectionService:GetTagged(weaponTag)) do
-		setupWeapon(weapon)
+		setupWeapon(weapon, weaponTag)
 	end
 
-	CollectionService:GetInstanceAddedSignal(weaponTag):Connect(setupWeapon)
+	CollectionService:GetInstanceAddedSignal(weaponTag):Connect(function(weapon)
+		setupWeapon(weapon, weaponTag)
+	end)
 end
 
 SetupWeaponInstances("WoodenClub")
