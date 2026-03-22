@@ -8,7 +8,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
-local Gears = require(ServerScriptService.Server.Gears)
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
 local ServerEvents = ServerScriptService.Server
@@ -110,6 +109,8 @@ local function GameOver()
 	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
 		return SafeTeleport(hubPlaceId, { Players:GetPlayers() })
 	end)
+
+	print("Hub TP success : " .. success)
 end
 
 local function OnPlayerDeath(player)
@@ -127,9 +128,10 @@ local function GetOrb(orb, player)
 		-- print("Add Small XP Orb")
 		PlayersStats.AddXp(10)
 	elseif orb.Name == "Banana" then
-		-- bananaCount += 1
-		-- Events.BananaPickup:FireAllClients(bananaCount)
 		PlayersStats.AddBananas(1)
+	elseif orb.Name == "Stick" then
+		local playerStats = PlayersStats[player.UserId]
+		playerStats.sticks.Value += 1
 	end
 
 	Events.XpPickup:FireClient(player)

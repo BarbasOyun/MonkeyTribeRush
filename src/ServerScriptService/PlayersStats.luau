@@ -43,6 +43,7 @@ local defaultStats = {
 	critChance = 5,
 	critMultiplier = 50,
 	weaponInfo = nil,
+	sticks = nil,
 	kills = nil,
 	highestKills = 0,
 	bananas = nil,
@@ -96,6 +97,11 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	bananas.Parent = uiInfos
 	bananas.Name = "Bananas"
 	playerStat.bananas = bananas
+
+	local sticks = Instance.new("IntValue")
+	bananas.Parent = uiInfos
+	bananas.Name = "Sticks"
+	playerStat.sticks = sticks
 
 	playersStats.ApplyStats(player)
 end

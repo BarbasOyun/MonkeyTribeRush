@@ -19,19 +19,19 @@ local stageProgress = Events.StageProgress
 
 -- UI
 local playerGui = player:WaitForChild("PlayerGui")
--- local playerGui = player.PlayerGui
 
 local uiInfos = player:WaitForChild("UIInfos")
 local xpBarCurrent = uiInfos.XpBarCurrent
 local xpBarMax = uiInfos.XpBarMax
 local bananas = uiInfos.Bananas
+local sticks = uiInfos.Sticks
 
 -- Main UI
 local mainGui = playerGui:WaitForChild("MainGui")
 local barUpdaters = {}
 local deathUI = mainGui.DeathUI
 
--- Level + XP Bar
+-- Player Data
 local levelText = mainGui.LevelText
 local levelUpButton = mainGui.LvlUpButton
 
@@ -39,13 +39,14 @@ local xpBarBg = mainGui.XpBarBG
 local xpBar = xpBarBg.XpBar
 local xpBarText = xpBarBg.XpBarText
 
+local bananaText = mainGui.BananaNbrText
+local sticksText = mainGui.StickNbrText
+
 -- Stage
 local stageProgressBG = mainGui.StageProgressBG
 local stageProgressBar = stageProgressBG.StageProgressBar
 local swarmSkull = ReplicatedStorage.Prefabs.SwarmSkull
 local nextStageTimer = mainGui.NextStageTimer
-
-local bananaText = mainGui.BananaNbrText
 local robotLvlText = mainGui.RobotIcon.RobotLvlText
 
 -- Augments
@@ -282,15 +283,19 @@ Events.XpPickup.OnClientEvent:Connect(function()
 	getXPSound:Play()
 end)
 
+levelUpEvent.OnClientEvent:Connect(OnLevelUp)
+levelUpButton.MouseButton1Click:Connect(DisplayAugments)
+
+augmentPick.OnClientEvent:Connect(AugmentPickResponse)
+
 -- Bananas
 bananas.Changed:Connect(function()
 	bananaText.Text = bananas.Value
 end)
 
-levelUpEvent.OnClientEvent:Connect(OnLevelUp)
-levelUpButton.MouseButton1Click:Connect(DisplayAugments)
-
-augmentPick.OnClientEvent:Connect(AugmentPickResponse)
+sticks.Changed:Connect(function()
+	sticksText.Text = sticks.Value
+end)
 
 -- Death
 Events.PlayerDied.OnClientEvent:Connect(function()

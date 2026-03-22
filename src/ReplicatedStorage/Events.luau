@@ -9,6 +9,8 @@ end
 --print("Events module loaded")
 
 return {
+	-- Players
+	PlayerDied = createRemoteEvent("PlayerDied"),
 	ToolAttack = createRemoteEvent("ToolAttack"),
 	ToolEquip = createRemoteEvent("ToolEquip"),
 	AttackHit = createRemoteEvent("AttackHit"),
@@ -16,11 +18,12 @@ return {
 	Reroll = createRemoteEvent("Reroll"),
 	AugmentPick = createRemoteEvent("AugmentPick"),
 	XpPickup = createRemoteEvent("XpPickup"),
+	platformTouched = createRemoteEvent("PlatformTouched"),
+	-- Stage
 	StageProgress = createRemoteEvent("StageProgress"),
 	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),
 	NextStageTimerTick = createRemoteEvent("NextStageTimerTick"),
 	EnemyLevelUp = createRemoteEvent("EnemyLevelUp"),
 	StageData = createRemoteEvent("StageData"),
 	GetFullStageData = createRemoteEvent("GetFullStageData"),
-	PlayerDied = createRemoteEvent("PlayerDied"),
 }

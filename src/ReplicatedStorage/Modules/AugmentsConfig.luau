@@ -19,7 +19,7 @@ return {
 		"mobility",
 		"luck",
 		"increasedXp",
-		"increasedPickupRange",
+		"increasedPickupRange", -- TODO : Rename
 		"critChance",
 		"critMultiplier",
 	},
