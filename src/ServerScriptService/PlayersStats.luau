@@ -6,7 +6,9 @@ local RunService = game:GetService("RunService")
 local Events = require(ReplicatedStorage.Shared.Events)
 local Gears = require(ServerScriptService.Server.Gears)
 local Augments = require(ReplicatedStorage.Shared.Modules.AugmentsConfig)
+local UpgradeTreeData = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 
+-- Events
 local levelUpEvent = Events.LevelUp -- Server = Augment Choice Made / Client = Display LvlUp Button
 local rerollEvent = Events.Reroll
 local augmentPick = Events.AugmentPick -- Server = Augment Pick State / Client = Update Levels Display
@@ -15,7 +17,7 @@ local playersStats = {}
 
 -- Augment Info
 local currentAugments = {}
-local positionStart = {}
+local positionStart = {} -- Reset Player's Pos after picking augment
 
 local defaultStats = {
 	level = 1,
@@ -99,8 +101,8 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	playerStat.bananas = bananas
 
 	local sticks = Instance.new("IntValue")
-	bananas.Parent = uiInfos
-	bananas.Name = "Sticks"
+	sticks.Parent = uiInfos
+	sticks.Name = "Sticks"
 	playerStat.sticks = sticks
 
 	playersStats.ApplyStats(player)
@@ -293,7 +295,8 @@ end
 
 function playersStats.AddBananas(bananas)
 	for _, player in pairs(Players:GetPlayers()) do
-		playersStats[player.UserId].bananas.Value += bananas
+		playersStats[player.UserId].bananas.Value =
+			math.clamp(playersStats[player.UserId].bananas.Value + bananas, 0, UpgradeTreeData.MAX_BANANAS)
 	end
 end
 

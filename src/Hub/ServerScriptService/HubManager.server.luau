@@ -7,10 +7,13 @@ local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local BananasData = DataStoreService:GetDataStore("Bananas")
 
+local UpgradeTreeData = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
+
+-- Place TP
 local placeId = 126527146316982
 
 -- local gameInstances = {}
-local platforms = { workspace.Game1.Platform }
+local platforms = { workspace.Game1Platform.Platform }
 local teleportedPlayers = {}
 
 local playerData = {}
@@ -18,6 +21,16 @@ local playerData = {}
 -- Music
 local music = workspace.Music
 music:Play()
+
+-- TODO : Move Gears to ReplicatedStorage + Move to Gears
+local function FindWhere(table, condition)
+	for _, item in pairs(table) do
+		if condition(item) then
+			return item
+		end
+	end
+	return nil
+end
 
 local function onPlatformTouched(hit, index)
 	local player = game.Players:GetPlayerFromCharacter(hit.Parent)
@@ -61,9 +74,7 @@ local function createRoomAndTeleport(players)
 	end
 end
 
--- Player Added
-Players.PlayerAdded:Connect(function(player)
-	-- TP Player to followed Player
+local function FollowedPlayer(player)
 	local followPlayerId = player.FollowUserId
 
 	if followPlayerId and followPlayerId ~= 0 then
@@ -77,6 +88,22 @@ Players.PlayerAdded:Connect(function(player)
 			warn(errorMsg)
 		end
 	end
+end
+
+-- Upgrade Tree Logic
+-- TODO : Move in different File
+local function CalcCost(lvl) -- type
+	local totalMultiplier = math.pow(UpgradeTreeData.COST_MULTIPLIER, lvl)
+	return math.floor(UpgradeTreeData.BASE_COST * totalMultiplier)
+end
+
+local function CalcStat(upgradeType, lvl)
+	return UpgradeTreeData[upgradeType].Increment * lvl
+end
+
+local function CreatePlayerData(player)
+	-- Create New Player Data
+	playerData[player.UserId] = {}
 
 	-- Display Bananas
 	local uiData = Instance.new("Folder")
@@ -89,9 +116,67 @@ Players.PlayerAdded:Connect(function(player)
 
 	local bananasCount = BananasData:GetAsync(player.UserId)
 	bananas.Value = bananasCount
-	print(player.Name .. " Has " .. bananasCount .. " Bananas")
+	-- print(player.Name .. " Has " .. bananasCount .. " Bananas")
 
-	playerData[player.UserId] = bananasCount
+	-- UpgradeTree
+	table.insert(playerData[player.UserId], bananas)
+
+	-- Build UpgradeTree Data
+	table.insert(playerData[player.UserId], {}) -- UpgradeTree Array = Index2
+
+	for _, upgradeType in ipairs(UpgradeTreeData.augmentType) do
+		local upgradeLvl = 3 -- Get From DataStore
+
+		table.insert(playerData[player.UserId][2], { -- Client access by index
+			lvl = upgradeLvl,
+			statValue = CalcStat(upgradeType, upgradeLvl),
+			cost = CalcCost(upgradeLvl),
+			displayText = UpgradeTreeData.displayText[upgradeType],
+		})
+	end
+
+	Events.GetFullStageData:FireClient(player, UpgradeTreeData.MAX_INCREMENTS, playerData[player.UserId])
+end
+
+-- Player Added
+Players.PlayerAdded:Connect(function(player)
+	print(player.Name .. " Joined")
+	FollowedPlayer(player)
+	CreatePlayerData(player)
+end)
+
+-- Player Leave
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+	-- CleanUp PlayerData
+	playerData[leavingPlayer.UserId] = nil
+end)
+
+Events.UpgradeTree.OnServerEvent:Connect(function(player, index)
+	-- Limit
+	if playerData[player.UserId][3] then
+		return
+	end
+
+	table.insert(playerData[player.UserId], {})
+
+	local bananasCount = playerData[player.UserId][1]
+	local upgradeData = playerData[player.UserId][2][index]
+
+	-- Check Max Increment
+	if bananasCount.Value < upgradeData.cost or upgradeData.lvl >= 10 then
+		return
+	end
+
+	-- lvlUp Upgrade
+	local upgradeType = UpgradeTreeData.augmentType[index]
+	bananasCount.Value = math.max(0, bananasCount.Value - upgradeData.cost)
+	BananasData:SetAsync(player.UserId, bananasCount.Value)
+
+	upgradeData.lvl += 1
+	upgradeData.statValue = CalcStat(upgradeType, upgradeData.lvl)
+	upgradeData.cost = CalcCost(upgradeData.lvl)
+
+	Events.UpgradeTree:FireClient(player, index, upgradeData)
 end)
 
 -- Do

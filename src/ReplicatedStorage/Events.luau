@@ -19,6 +19,8 @@ return {
 	AugmentPick = createRemoteEvent("AugmentPick"),
 	XpPickup = createRemoteEvent("XpPickup"),
 	platformTouched = createRemoteEvent("PlatformTouched"),
+	-- Upgrade Tree
+	UpgradeTree = createRemoteEvent("UpgradeTree"),
 	-- Stage
 	StageProgress = createRemoteEvent("StageProgress"),
 	CurrentStageChanged = createRemoteEvent("CurrentStageChanged"),

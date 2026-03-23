@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
+local UpgradeTreeData = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 local ServerEvents = ServerScriptService.Server
 local Events = ReplicatedStorage.Shared
 
@@ -37,6 +38,20 @@ xpPickupParam.FilterType = Enum.RaycastFilterType.Include
 xpPickupParam.FilterDescendantsInstances = { workspace.XP_Orbs }
 xpPickupParam.MaxParts = 50
 
+local function IncrementBananas(userId, amount)
+	local success, newValue = pcall(function()
+		return BananasData:UpdateAsync(userId, function(oldValue) -- "PlayerLevel_" .. userId
+			local current = oldValue or 0
+			local nextValue = current + amount
+			return math.clamp(nextValue, 0, UpgradeTreeData.MAX_BANANAS)
+		end)
+	end)
+
+	if success then
+		return newValue
+	end
+end
+
 local function SaveData()
 	-- Save Data : Kills, Destruction, Bananas -> use pcall
 	-- Cap Data to max
@@ -50,7 +65,8 @@ local function SaveData()
 		local kills = player.leaderstats.Kills
 		-- local destruction = player.leaderstats.Destruction -- TODO : Save Destruction
 
-		BananasData:IncrementAsync(player.UserId, bananasDelta)
+		-- BananasData:IncrementAsync(player.UserId, bananasDelta)
+		IncrementBananas(player.UserId, bananasDelta)
 		playerStats.storedBananas = bananasDelta
 		print("Bananas Added : " .. bananasDelta)
 

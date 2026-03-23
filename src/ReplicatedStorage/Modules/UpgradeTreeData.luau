@@ -1,6 +1,9 @@
 return {
-	MaxIncrements = 10,
-	augmentType = { -- TODO : Unify?
+	MAX_BANANAS = 10_000,
+	MAX_INCREMENTS = 10,
+	BASE_COST = 100,
+	COST_MULTIPLIER = 1.2,
+	augmentType = { -- TODO : Unify with augments?
 		"attackDamage",
 		"attackSpeed",
 		"aoe",
@@ -13,6 +16,20 @@ return {
 		"increasedPickupRange",
 		"critChance",
 		"critMultiplier",
+	},
+	displayText = {
+		["attackDamage"] = "% Attack Damage ",
+		["attackSpeed"] = "% Attack Speed ",
+		["aoe"] = "% AOE ",
+		["maxHealth"] = "Life ",
+		["lifeRegen"] = "Life Regen ",
+		["damageReduction"] = "% Damage Reduction ",
+		["mobility"] = "Mobility ",
+		["luck"] = "Luck ",
+		["increasedXp"] = "% Increased XP ",
+		["increasedPickupRange"] = "% Pickup Range ",
+		["critChance"] = "% Crit Chance ",
+		["critMultiplier"] = "% Crit Multiplier ",
 	},
 	["attackDamage"] = {
 		Increment = 5,

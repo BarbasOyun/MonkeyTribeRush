@@ -212,7 +212,7 @@ local function InitUi()
 end
 
 -- Respawn
-local function onCharacterAdded(character)
+local function OnCharacterAdded(character)
 	-- print("Character Added")
 	local humanoid2 = character.Humanoid
 
@@ -275,7 +275,7 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 end)
 
 -- Player Events
-player.CharacterAdded:Connect(onCharacterAdded)
+player.CharacterAdded:Connect(OnCharacterAdded)
 
 xpBarCurrent.Changed:Connect(UpdateXpBar)
 xpBarMax.Changed:Connect(UpdateXpBar)
