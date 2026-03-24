@@ -15,6 +15,7 @@ local loadingText = playerGUI.MainUI.LoadingText
 local maxIncrements = 10
 
 local upgradeBoard = playerGUI.UpgradeBoardGUI
+local loadingFrame = upgradeBoard.Loading
 
 local upgradeTree = {
 	upgradeBoard.AttackDamage,
@@ -53,6 +54,7 @@ local function InitUi()
 	for i, upgradeButton in ipairs(upgradeTree) do
 		upgradeButton.MouseButton1Click:Connect(function()
 			-- print("Asking for Upgrade : " .. i)
+			loadingFrame.Visible = true
 			Events.UpgradeTree:FireServer(i)
 		end)
 	end
@@ -80,7 +82,7 @@ end)
 Events.GetFullStageData.OnClientEvent:Connect(function(maximumIncrements, playerData)
 	maxIncrements = maximumIncrements
 
-	-- bananaText.Text = playerData[1].Value
+	bananaText.Text = playerData[1].Value
 
 	local upgradeTreeData = playerData[2]
 
@@ -89,8 +91,12 @@ Events.GetFullStageData.OnClientEvent:Connect(function(maximumIncrements, player
 	end
 end)
 
-Events.UpgradeTree.OnClientEvent:Connect(function(index, upgradeData)
-	UpdateUpgradeDisplay(index, upgradeData.lvl, upgradeData.statValue, upgradeData.cost, upgradeData.displayText)
+Events.UpgradeTree.OnClientEvent:Connect(function(success, index, upgradeData)
+	loadingFrame.Visible = false
+
+	if success then
+		UpdateUpgradeDisplay(index, upgradeData.lvl, upgradeData.statValue, upgradeData.cost, upgradeData.displayText)
+	end
 end)
 
 -- Do

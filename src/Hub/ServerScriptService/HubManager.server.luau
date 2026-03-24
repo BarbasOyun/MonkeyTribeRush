@@ -9,6 +9,8 @@ local BananasData = DataStoreService:GetDataStore("Bananas")
 
 local UpgradeTreeData = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 
+local UPGRADE_DELTA_TIME = 1
+
 -- Place TP
 local placeId = 126527146316982
 
@@ -135,6 +137,8 @@ local function CreatePlayerData(player)
 		})
 	end
 
+	table.insert(playerData[player.UserId], false)
+
 	Events.GetFullStageData:FireClient(player, UpgradeTreeData.MAX_INCREMENTS, playerData[player.UserId])
 end
 
@@ -152,31 +156,38 @@ Players.PlayerRemoving:Connect(function(leavingPlayer)
 end)
 
 Events.UpgradeTree.OnServerEvent:Connect(function(player, index)
-	-- Limit
+	-- Rate Limit
 	if playerData[player.UserId][3] then
+		Events.UpgradeTree:FireClient(player, false)
 		return
 	end
-
-	table.insert(playerData[player.UserId], {})
 
 	local bananasCount = playerData[player.UserId][1]
 	local upgradeData = playerData[player.UserId][2][index]
 
 	-- Check Max Increment
 	if bananasCount.Value < upgradeData.cost or upgradeData.lvl >= 10 then
+		Events.UpgradeTree:FireClient(player, false)
 		return
 	end
 
 	-- lvlUp Upgrade
 	local upgradeType = UpgradeTreeData.augmentType[index]
 	bananasCount.Value = math.max(0, bananasCount.Value - upgradeData.cost)
-	BananasData:SetAsync(player.UserId, bananasCount.Value)
+
+	playerData[player.UserId][3] = true
+	local succ, err = pcall(function()
+		BananasData:SetAsync(player.UserId, bananasCount.Value)
+	end)
+	task.wait(UPGRADE_DELTA_TIME)
+	playerData[player.UserId][3] = false
 
 	upgradeData.lvl += 1
 	upgradeData.statValue = CalcStat(upgradeType, upgradeData.lvl)
 	upgradeData.cost = CalcCost(upgradeData.lvl)
 
-	Events.UpgradeTree:FireClient(player, index, upgradeData)
+	-- TODO : Return Success
+	Events.UpgradeTree:FireClient(player, true, index, upgradeData)
 end)
 
 -- Do
