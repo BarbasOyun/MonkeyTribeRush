@@ -365,8 +365,11 @@ rerollEvent.OnServerEvent:Connect(function(player)
 		return
 	end
 
-	-- TODO : Pay 10 Sticks to Reroll
+	if playersStats[player.UserId].sticks.Value < 10 then
+		return
+	end
 
+	playersStats[player.UserId].sticks.Value -= 10
 	playersStats.SendAugment(player, playersStats[player.UserId])
 end)
 

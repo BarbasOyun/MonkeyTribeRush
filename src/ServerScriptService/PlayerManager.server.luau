@@ -2,6 +2,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local KillsData = DataStoreService:GetOrderedDataStore("Wins") -- TODO : Use Scopes
 local BananasData = DataStoreService:GetDataStore("Bananas")
+local UpgradeTreeData = DataStoreService:GetDataStore("UpgradeTree")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -10,11 +11,11 @@ local Players = game:GetService("Players")
 
 local PlayersStats = require(ServerScriptService.Server.PlayersStats)
 local MapGenerator = require(ServerScriptService.Server.MapGenerator)
-local UpgradeTreeData = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
+local UpgradeTree = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 local ServerEvents = ServerScriptService.Server
 local Events = ReplicatedStorage.Shared
 
-local SafeTeleport = ReplicatedStorage.Shared.SafeTeleport
+local SafeTeleport = require(ReplicatedStorage.Shared.SafeTeleport)
 local hubPlaceId = 92891776561997
 
 local globalEnemiesLevel = 1 -- TODO : Refactor
@@ -38,18 +39,21 @@ xpPickupParam.FilterType = Enum.RaycastFilterType.Include
 xpPickupParam.FilterDescendantsInstances = { workspace.XP_Orbs }
 xpPickupParam.MaxParts = 50
 
-local function IncrementBananas(userId, amount)
+-- TODO : Move to Gears
+local function SafeIncrement(dataStore, userId, amount)
 	local success, newValue = pcall(function()
-		return BananasData:UpdateAsync(userId, function(oldValue) -- "PlayerLevel_" .. userId
+		return dataStore:UpdateAsync(userId, function(oldValue)
 			local current = oldValue or 0
 			local nextValue = current + amount
-			return math.clamp(nextValue, 0, UpgradeTreeData.MAX_BANANAS)
+			return math.clamp(nextValue, 0, UpgradeTree.MAX_BANANAS)
 		end)
 	end)
 
 	if success then
 		return newValue
 	end
+
+	return nil
 end
 
 local function SaveData()
@@ -57,31 +61,38 @@ local function SaveData()
 	-- Cap Data to max
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		print("Save Data for : " .. player.Name)
+		print("Saving Data for : " .. player.Name)
 
 		local playerStats = PlayersStats[player.UserId]
 
 		local bananasDelta = playerStats.bananas.Value - playerStats.storedBananas
-		local kills = player.leaderstats.Kills
+		local kills = player.leaderstats.Kills.Value
 		-- local destruction = player.leaderstats.Destruction -- TODO : Save Destruction
 
 		-- BananasData:IncrementAsync(player.UserId, bananasDelta)
-		IncrementBananas(player.UserId, bananasDelta)
+		SafeIncrement(BananasData, player.UserId, bananasDelta)
 		playerStats.storedBananas = bananasDelta
 		print("Bananas Added : " .. bananasDelta)
 
 		if kills > playerStats.highestKills then
-			print("Save Kills Value")
+			-- print("Save Kills")
 			playerStats.highestKills = kills
 			KillsData:SetAsync(player.UserId, kills)
 		end
 	end
 end
 
-local function ResetData()
+local function ResetData(player)
+	KillsData:SetAsync(player.UserId, 0)
+	BananasData:SetAsync(player.UserId, 0)
+	for _, upgradeType in UpgradeTree.augmentType do
+		UpgradeTreeData:SetAsync(upgradeType .. "_" .. player.UserId, 0)
+	end
+end
+
+local function ResetAllData()
 	for _, player in ipairs(Players:GetPlayers()) do
-		KillsData:SetAsync(player.UserId, 0)
-		BananasData:SetAsync(player.UserId, 0)
+		ResetData(player)
 	end
 end
 
@@ -123,10 +134,15 @@ local function GameOver()
 	print("Game Over -> Going back to Hub")
 	SaveData()
 	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
-		return SafeTeleport(hubPlaceId, { Players:GetPlayers() })
+		return SafeTeleport(hubPlaceId, Players:GetPlayers())
 	end)
 
-	print("Hub TP success : " .. success)
+	print("Hub TP success : ")
+	print(success)
+
+	if not success then
+		print(errorMsg)
+	end
 end
 
 local function OnPlayerDeath(player)
@@ -215,6 +231,12 @@ local function PickupRange()
 	end
 end
 
+-- Upgrade Tree Logic
+-- TODO : Move in UpgradeTree Module
+local function CalcStat(upgradeType, lvl)
+	return UpgradeTree[upgradeType].Increment * lvl
+end
+
 -- Events
 
 -- TODO : Refactor
@@ -254,21 +276,31 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 
 	player:LoadCharacterAsync()
-	-- Gears.waitUntil(function()
-	-- 	return player.Character
-	-- end)
 
 	local character = player.Character
 	local root = character:FindFirstChild("HumanoidRootPart")
 
 	EquipDefaultWeapon(player)
 
-	-- On Death
+	-- Get Stats from UpgradeTree
+	for _, upgradeType in UpgradeTree.augmentType do
+		local lvl = UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId) or 0
+
+		if lvl <= 0 then
+			continue
+		end
+
+		local value = CalcStat(upgradeType, lvl)
+		print(player.Name .. " Get " .. value .. " " .. upgradeType .. " from UpgradeTree")
+		PlayersStats.AddStat(player, PlayersStats[player.UserId], upgradeType, value)
+	end
+
+	-- Set OnDeath
 	character.Humanoid.Died:Connect(function()
 		OnPlayerDeath(player)
 	end)
 
-	-- Send Current Stage Data -> Players joining mid game
+	-- Send Full Stage Data -> Players joining mid game
 	Events.GetFullStageData:FireClient(
 		player,
 		MapGenerator.stageEventsNbr,

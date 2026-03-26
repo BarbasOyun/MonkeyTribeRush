@@ -89,11 +89,12 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 			Gears.SpawnEnemyCircle(player.Character.PrimaryPart.Position)
 		end
 
-		-- Banana Loot
+		-- Banana / Stick Loot
 		local roll = math.random(0, 100)
+
 		if roll < 70 then
-			if roll > 90 then
-				Gears.SpawnStick()
+			if roll < 10 then
+				Gears.SpawnStick(building.Position)
 			end
 			return
 		end

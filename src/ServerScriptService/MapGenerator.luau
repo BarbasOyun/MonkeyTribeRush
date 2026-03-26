@@ -13,7 +13,7 @@ local orbsFolder = workspace.XP_Orbs
 
 -- Buildings Data
 -- TODO : Move to file
-local militaryBase = { prefab = ReplicatedStorage.Prefabs.MilitaryBase, nbrOfParts = 1110, radius = 55 }
+local militaryBase = { prefab = ReplicatedStorage.Prefabs.MilitaryBase, nbrOfParts = 800, radius = 55 } -- Real Nbr = 1110
 local militaryCamp = { prefab = ReplicatedStorage.Prefabs.MilitaryCamp, nbrOfParts = 912, radius = 60 }
 local militaryCanvas = { prefab = ReplicatedStorage.Prefabs.MilitaryCanvas, nbrOfParts = 336, radius = 40 }
 local smallCamp = { prefab = ReplicatedStorage.Prefabs.SmallCamp, nbrOfParts = 1000, radius = 35 } -- Real Nbr = 1806

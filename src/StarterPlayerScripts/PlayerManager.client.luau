@@ -299,7 +299,6 @@ end)
 
 -- Death
 Events.PlayerDied.OnClientEvent:Connect(function()
-	print("Death Event")
 	deathUI.Visible = true
 end)
 

@@ -1,3 +1,4 @@
+local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Events = ReplicatedStorage.Shared
 local player = game.Players.LocalPlayer
@@ -10,6 +11,14 @@ local playerGUI = player:WaitForChild("PlayerGui")
 local platformSound = playerGUI:WaitForChild("Sounds").PlatformSound
 local bananaText = playerGUI.MainUI.BananaNbrText
 local loadingText = playerGUI.MainUI.LoadingText
+
+-- Donations
+local hundredDonationId = 3563342388
+local thousandDonationId = 3563893138
+
+local donationBoard = playerGUI:WaitForChild("DonationGUI")
+local hundredDonationButton = donationBoard.Donate100
+local thousandDonationButton = donationBoard.Donate1000
 
 -- Upgrade Tree
 local maxIncrements = 10
@@ -76,6 +85,15 @@ end)
 
 bananasCount.Changed:Connect(function()
 	bananaText.Text = bananasCount.Value
+end)
+
+-- Donation Events
+hundredDonationButton.MouseButton1Click:Connect(function()
+	MarketplaceService:PromptProductPurchase(player, hundredDonationId)
+end)
+
+thousandDonationButton.MouseButton1Click:Connect(function()
+	MarketplaceService:PromptProductPurchase(player, thousandDonationId)
 end)
 
 -- Upgrade Tree Events

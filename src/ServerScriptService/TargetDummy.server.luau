@@ -17,7 +17,7 @@ local function setupDummy(dummy)
 	end
 
 	local function OnDeath()
-		print(dummy.Name .. " Died")
+		-- print(dummy.Name .. " Died")
 		-- Gears.SpawnXP(dummy:GetPivot().Position)
 		task.wait(1)
 		-- Respawn

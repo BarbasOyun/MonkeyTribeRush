@@ -47,7 +47,7 @@ local ATTACK_RANGE = 4
 local ATTACK_COOLDOWN = 1 -- Seconds
 
 local attackFrameCount = 0
-local attackDmg = 1
+local attackDmg = 2
 local attackCooldowns = {}
 
 local params = OverlapParams.new()

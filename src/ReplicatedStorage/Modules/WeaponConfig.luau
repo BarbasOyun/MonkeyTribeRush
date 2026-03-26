@@ -20,7 +20,7 @@ return {
 	["WoodenClub"] = {
 		WeaponType = "Mace",
 		BaseDamage = 25,
-		AttackSpeed = 0.7,
+		AttackSpeed = 0.75,
 		Range = 8,
 	},
 }
