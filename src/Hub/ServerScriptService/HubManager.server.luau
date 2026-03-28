@@ -20,7 +20,7 @@ local placeId = 126527146316982
 local platforms = { workspace.Game1Platform.Platform } -- TODO : Add Platform2 = workspace.Game2Platform.Platform
 local teleportedPlayers = {}
 
-local playerData = {}
+local playersData = {}
 
 -- Marketplace
 local productFunctions = {}
@@ -57,6 +57,7 @@ local function SafeIncrement(dataStore, userId, amount)
 	return nil
 end
 
+-- Store
 productFunctions[hundredDonationId] = function(receipt, player)
 	return true
 end
@@ -86,6 +87,7 @@ end
 
 MarketplaceService.ProcessReceipt = processReceipt
 
+-- TP Place
 local function onPlatformTouched(hit, index)
 	local player = game.Players:GetPlayerFromCharacter(hit.Parent)
 
@@ -157,31 +159,36 @@ end
 
 local function CreatePlayerData(player)
 	-- Create New Player Data
-	playerData[player.UserId] = {}
+	playersData[player.UserId] = {}
 
 	-- Display Bananas
 	local uiData = Instance.new("Folder")
 	uiData.Parent = player
 	uiData.Name = "UIData"
 
-	local bananas = Instance.new("IntValue")
-	bananas.Parent = uiData
-	bananas.Name = "Bananas"
+	local bananasUi = Instance.new("IntValue")
+	bananasUi.Parent = uiData
+	bananasUi.Name = "BananasUi"
 
-	local bananasCount = BananasData:GetAsync(player.UserId)
-	bananas.Value = bananasCount
+	-- Get bananas from DataStore
+	local success, value = pcall(function()
+		return BananasData:GetAsync(player.UserId)
+	end)
+
+	local bananasCount = value
+	bananasUi.Value = bananasCount
 	-- print(player.Name .. " Has " .. bananasCount .. " Bananas")
 
-	table.insert(playerData[player.UserId], bananas)
+	table.insert(playersData[player.UserId], bananasCount)
 
-	-- Build UpgradeTree Data
-	table.insert(playerData[player.UserId], {}) -- UpgradeTree Array = Index2
+	-- Add UpgradeTree Data
+	table.insert(playersData[player.UserId], {}) -- UpgradeTree Array = Index2
 
 	for _, upgradeType in ipairs(UpgradeTree.augmentType) do
 		-- local upgradeLvl = 3 -- Get From DataStore
 		local upgradeLvl = UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId) or 0
 
-		table.insert(playerData[player.UserId][2], { -- Client access by index
+		table.insert(playersData[player.UserId][2], { -- Client access by index
 			lvl = upgradeLvl,
 			statValue = CalcStat(upgradeType, upgradeLvl),
 			cost = CalcCost(upgradeLvl),
@@ -189,23 +196,30 @@ local function CreatePlayerData(player)
 		})
 	end
 
-	table.insert(playerData[player.UserId], false)
+	-- Add Rate Limit
+	table.insert(playersData[player.UserId], false)
 
-	Events.GetFullStageData:FireClient(player, UpgradeTree.MAX_INCREMENTS, playerData[player.UserId])
+	-- Store BananasUi TODO : Refactor
+	table.insert(playersData[player.UserId], bananasUi)
+
+	Events.GetFullStageData:FireClient(player, UpgradeTree.MAX_INCREMENTS, playersData[player.UserId])
 end
 
 local function LvlUpUpgrade(player, index)
+	local playerData = playersData[player.UserId]
+
 	-- Rate Limit
-	if playerData[player.UserId][3] then
-		-- Events.UpgradeTree:FireClient(player, false)
+	if playerData[3] then
+		Events.UpgradeTree:FireClient(player, false)
 		return
 	end
+	playerData[3] = true
 
-	local bananasCount = playerData[player.UserId][1]
-	local upgradeData = playerData[player.UserId][2][index]
+	local bananasCount = playerData[1]
+	local upgradeData = playerData[2][index]
 
-	-- Check Max Increment
-	if bananasCount.Value < upgradeData.cost or upgradeData.lvl >= 10 then
+	-- Check Conditions
+	if bananasCount < upgradeData.cost or upgradeData.lvl >= 10 then
 		Events.UpgradeTree:FireClient(player, false)
 		return
 	end
@@ -213,23 +227,26 @@ local function LvlUpUpgrade(player, index)
 	local upgradeType = UpgradeTree.augmentType[index]
 	local newLvl = upgradeData.lvl + 1
 
-	-- Datastore Operations : Bananas + Lvl
-	playerData[player.UserId][3] = true
+	-- Datastore -> Increment Lvl
 	local success, err = pcall(function()
-		BananasData:SetAsync(player.UserId, bananasCount.Value)
+		UpgradeTreeData:SetAsync(upgradeType .. "_" .. player.UserId, newLvl) -- TODO : UpgradeTreeService Function
 	end)
-	-- SafeIncrement(UpgradeTreeData, player, 1)
-	local success2, err2 = pcall(function()
-		UpgradeTreeData:SetAsync(upgradeType .. "_" .. player.UserId, newLvl) -- TODO : UpgradeTree Function
+
+	bananasCount = math.max(0, bananasCount - upgradeData.cost)
+
+	-- Datastore -> Remove Bananas
+	local bSuccess, bErr = pcall(function()
+		BananasData:SetAsync(player.UserId, bananasCount)
 	end)
 	task.wait(UPGRADE_DELTA_TIME)
-	playerData[player.UserId][3] = false
+
+	playerData[3] = false
 
 	-- Finish
-	bananasCount.Value = math.max(0, bananasCount.Value - upgradeData.cost)
 	upgradeData.lvl = newLvl
 	upgradeData.statValue = CalcStat(upgradeType, upgradeData.lvl)
 	upgradeData.cost = CalcCost(upgradeData.lvl)
+	playerData[4].Value = bananasCount
 
 	Events.UpgradeTree:FireClient(player, true, index, upgradeData)
 end
@@ -244,7 +261,7 @@ end)
 -- Player Leave
 Players.PlayerRemoving:Connect(function(leavingPlayer)
 	-- CleanUp PlayerData
-	playerData[leavingPlayer.UserId] = nil
+	playersData[leavingPlayer.UserId] = nil
 end)
 
 Events.UpgradeTree.OnServerEvent:Connect(function(player, index)

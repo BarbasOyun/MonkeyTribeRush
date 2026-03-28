@@ -278,7 +278,7 @@ function playersStats.LevelUp(player)
 	playerStat.waitingLevel += 1
 	playerStat.currentXp.Value = 0
 	playerStat.levelUpXp.Value *= 1.1
-	print(player.Name .. " Leveled Up")
+	-- print(player.Name .. " Leveled Up")
 
 	playersStats.SendAugment(player, playerStat)
 	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)

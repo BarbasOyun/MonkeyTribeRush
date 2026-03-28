@@ -6,6 +6,8 @@ local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 
 local gears = {}
 
+-- TODO : Move every Game Manager to GameManager
+-- Game Manager
 local mapLimits = { X = Vector2.new(-290, 290), Z = Vector2.new(-190, 190) } -- Real Values = X = Vector2.new(-300, 300), Z = Vector2.new(-200, 200)
 
 -- Prefabs
@@ -13,6 +15,39 @@ local smallXpOrb = ReplicatedStorage.Prefabs.SmallXpOrb
 local banana = ReplicatedStorage.Prefabs.Banana
 local stick = ReplicatedStorage.Prefabs.Stick
 local enemy = ReplicatedStorage.Prefabs.Robot
+
+-- GearsInstances
+
+function gears.GetPartCount(parentObject)
+	local count = 0
+
+	for _, object in ipairs(parentObject:GetDescendants()) do
+		if object:IsA("BasePart") then
+			count += 1
+		end
+	end
+
+	return count
+end
+
+-- GearsAudio
+
+function gears.safePlaySound(sound)
+	sound:Stop()
+	sound.TimePosition = 0
+	task.wait() -- 0.033 = 2 Frames
+	sound:Play()
+end
+
+function gears.SafePlaySoundClone(soundPrefab, parent)
+	local sound = soundPrefab:Clone()
+	sound.Parent = parent
+	task.wait()
+	sound:Play()
+	game.Debris:AddItem(sound, sound.TimeLength + 0.01)
+end
+
+-- GearsAsync
 
 function gears.ExecuteFor(duration, lambda)
 	local execute = RunService.Heartbeat:Connect(function()
@@ -38,6 +73,20 @@ function gears.waitUntil(condition)
 	end
 
 	return true
+end
+
+-- GearsMath
+
+function gears.IncreaseToMultiplier(increaseValue)
+	return 1 + increaseValue / 100
+end
+
+function gears.SumTable(t)
+	local total = 0
+	for i = 1, #t do
+		total += t[i]
+	end
+	return total
 end
 
 function gears.DrawSphere(position, radius, color)
@@ -198,45 +247,21 @@ function gears.SpawnStick(spawnPosition)
 	gears.LootMovement(newStick, spawnPosition)
 end
 
-function gears.SpawnEnemyCircle(basePosition) -- TODO : Move to Enemy Service
+-- Enemy Service -> TODO : Move to Enemy Service
+
+function gears.SpawnEnemyCircle(basePosition)
 	local radius = math.random(60, 120)
 	local progress = gears.FloatRandom(0, math.rad(360)) -- math.pi * 2
 	local circlePos = gears.CirclePos(radius, progress)
 	gears.SpawnEnemy(basePosition + Vector3.new(circlePos.X, 0, circlePos.Y))
 end
 
-function gears.SpawnEnemy(spawnPosition) -- TODO : Move to Enemy Service
+function gears.SpawnEnemy(spawnPosition)
 	local newEnemy = enemy:Clone()
 	local xPos = math.clamp(spawnPosition.X, mapLimits.X.X, mapLimits.X.Y)
 	local zPos = math.clamp(spawnPosition.Z, mapLimits.Z.X, mapLimits.Z.Y)
 	newEnemy.PrimaryPart.CFrame = CFrame.new(Vector3.new(xPos, spawnPosition.Y, zPos))
 	ServerEvents.EnemySpawned:Fire(newEnemy)
-end
-
-function gears.GetPartCount(parentObject)
-	local count = 0
-
-	-- GetDescendants() looks through every single layer of the hierarchy
-	for _, object in ipairs(parentObject:GetDescendants()) do
-		-- BasePart covers Parts, MeshParts, Wedges, Trusses, etc.
-		if object:IsA("BasePart") then
-			count += 1
-		end
-	end
-
-	return count
-end
-
-function gears.SumTable(t)
-	local total = 0
-	for i = 1, #t do
-		total += t[i]
-	end
-	return total
-end
-
-function gears.IncreaseToMultiplier(increaseValue)
-	return 1 + increaseValue / 100
 end
 
 return gears

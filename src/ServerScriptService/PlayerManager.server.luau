@@ -57,9 +57,6 @@ local function SafeIncrement(dataStore, userId, amount)
 end
 
 local function SaveData()
-	-- Save Data : Kills, Destruction, Bananas -> use pcall
-	-- Cap Data to max
-
 	for _, player in ipairs(Players:GetPlayers()) do
 		print("Saving Data for : " .. player.Name)
 
@@ -69,7 +66,6 @@ local function SaveData()
 		local kills = player.leaderstats.Kills.Value
 		-- local destruction = player.leaderstats.Destruction -- TODO : Save Destruction
 
-		-- BananasData:IncrementAsync(player.UserId, bananasDelta)
 		SafeIncrement(BananasData, player.UserId, bananasDelta)
 		playerStats.storedBananas = bananasDelta
 		print("Bananas Added : " .. bananasDelta)
@@ -77,11 +73,15 @@ local function SaveData()
 		if kills > playerStats.highestKills then
 			-- print("Save Kills")
 			playerStats.highestKills = kills
-			KillsData:SetAsync(player.UserId, kills)
+
+			success, err = pcall(function()
+				KillsData:SetAsync(player.UserId, kills)
+			end)
 		end
 	end
 end
 
+-- Debug Data
 local function ResetData(player)
 	KillsData:SetAsync(player.UserId, 0)
 	BananasData:SetAsync(player.UserId, 0)
@@ -268,45 +268,8 @@ Events.GetFullStageData.OnServerEvent:Connect(function(player)
 	)
 end)
 
-Players.PlayerAdded:Connect(function(player)
-	print(player.Name .. " has joined the game")
-
-	task.spawn(function()
-		SetupPlayer(player)
-	end)
-
-	player:LoadCharacterAsync()
-
-	local character = player.Character
+local function AddLimit(character)
 	local root = character:FindFirstChild("HumanoidRootPart")
-
-	EquipDefaultWeapon(player)
-
-	-- Get Stats from UpgradeTree
-	for _, upgradeType in UpgradeTree.augmentType do
-		local lvl = UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId) or 0
-
-		if lvl <= 0 then
-			continue
-		end
-
-		local value = CalcStat(upgradeType, lvl)
-		print(player.Name .. " Get " .. value .. " " .. upgradeType .. " from UpgradeTree")
-		PlayersStats.AddStat(player, PlayersStats[player.UserId], upgradeType, value)
-	end
-
-	-- Set OnDeath
-	character.Humanoid.Died:Connect(function()
-		OnPlayerDeath(player)
-	end)
-
-	-- Send Full Stage Data -> Players joining mid game
-	Events.GetFullStageData:FireClient(
-		player,
-		MapGenerator.stageEventsNbr,
-		MapGenerator.stageProgress,
-		globalEnemiesLevel
-	)
 
 	RunService.Heartbeat:Connect(function()
 		-- Limit Velocity
@@ -326,6 +289,51 @@ Players.PlayerAdded:Connect(function(player)
 			root.AssemblyLinearVelocity = Vector3.zero -- Reset momentum
 		end
 	end)
+end
+
+local function GetStatsFromUpgradeTree(player)
+	for _, upgradeType in UpgradeTree.augmentType do
+		local success, lvl = pcall(function()
+			return UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId)
+		end)
+
+		if lvl == nil or lvl <= 0 then
+			continue
+		end
+
+		local value = CalcStat(upgradeType, lvl)
+		-- print(player.Name .. " Get " .. value .. " " .. upgradeType .. " from UpgradeTree")
+		PlayersStats.AddStat(player, PlayersStats[player.UserId], upgradeType, value)
+	end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	print(player.Name .. " has joined the game")
+
+	task.spawn(function()
+		SetupPlayer(player)
+	end)
+
+	player:LoadCharacterAsync()
+	local character = player.Character
+
+	EquipDefaultWeapon(player)
+	GetStatsFromUpgradeTree(player)
+
+	-- Set OnDeath
+	character.Humanoid.Died:Connect(function()
+		OnPlayerDeath(player)
+	end)
+
+	-- Send Full Stage Data -> Players joining mid game
+	Events.GetFullStageData:FireClient(
+		player,
+		MapGenerator.stageEventsNbr,
+		MapGenerator.stageProgress,
+		globalEnemiesLevel
+	)
+
+	AddLimit(character)
 end)
 
 -- DO

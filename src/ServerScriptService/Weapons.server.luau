@@ -1,4 +1,3 @@
---Weapon Server -> Dmg + Sounds
 local Players = game:GetService("Players")
 local PlayersStats = require(script.Parent.PlayersStats)
 
@@ -41,6 +40,8 @@ function FindHumanoidFromPart(part)
 
 	return nil
 end
+
+-- Weapon Attack
 
 local function IncrementCombo(playerStat)
 	playerStat.comboCount += 1
@@ -121,6 +122,7 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	for _, hit in ipairs(hits) do
 		-- print("Hit Part: " .. hit.Name)
 		local humanoid = FindHumanoidFromPart(hit)
+
 		if humanoid then
 			-- Enemy Hit
 			if humanoid.Parent ~= player.Character and humanoidsHit[humanoid] == nil then
@@ -139,14 +141,14 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 
 	-- Attack SFX
 	if isCrit then
-		weaponInfo.sounds.crit:Play()
+		Gears.safePlaySound(weaponInfo.sounds.crit)
 		return
 	elseif isBuilding then
-		weaponInfo.sounds.buildingHit:Play()
+		Gears.safePlaySound(weaponInfo.sounds.buildingHit)
 		return
 	end
 
-	weaponInfo.sounds.slash:Play()
+	Gears.safePlaySound(weaponInfo.sounds.slash)
 end
 
 -- Attack Callback
@@ -225,21 +227,50 @@ local function Attack(player)
 	StartAttack()
 end
 
--- EVENTS SETUP
-attackEvent.OnServerEvent:Connect(Attack)
-attackHitEvent.OnServerEvent:Connect(WeaponDamage)
+-- Setup & Equip Weapons
+
+local function AddSounds(weaponInfo, player)
+	local playerGUi = player.PlayerGui
+
+	-- Create Sounds -> Same Sounds for every weapon
+	local unsheath = unsheathSoundPrefab:clone()
+	unsheath.Parent = playerGUi
+
+	local slash = slashSoundPrefab:clone()
+	slash.Parent = playerGUi
+
+	local crit = critSoundPrefab:clone()
+	crit.Parent = playerGUi
+
+	local buildingHit = buildingHitSoundPrefab:clone()
+	buildingHit.Parent = playerGUi
+
+	weaponInfo.sounds = {
+		unsheath = playerGUi.Unsheath,
+		slash = playerGUi.Slash,
+		crit = playerGUi.CriticalSlash,
+		buildingHit = playerGUi.BuildingHit,
+	}
+end
 
 local function OnEquipped(weapon, weaponInfo)
 	local character = weapon.Parent
 	local player = Players:GetPlayerFromCharacter(character)
 	-- print(weapon.Name .. " Equipped by player: " .. player.Name)
 
+	AddSounds(weaponInfo, player)
+
 	local playerStat = PlayersStats[player.UserId]
 	playerStat.weaponInfo = weaponInfo
 	PlayersStats.ApplyStats(player)
 
-	playerStat.weaponInfo.sounds.unsheath:Play()
-	equipEvent:FireClient(player, true)
+	weaponInfo.sounds.unsheath:Play()
+
+	-- equipEvent:FireClient(
+	-- 	player,
+	-- 	true,
+	-- 	{ weaponInfo.sounds.slash, weaponInfo.sounds.buildingHit, weaponInfo.sounds.crit }
+	-- )
 end
 
 local function OnUnequipped(weapon)
@@ -256,6 +287,12 @@ local function OnUnequipped(weapon)
 	-- print(weapon.Name .. " Unequipped by player: " .. player.Name)
 
 	local playerStats = PlayersStats[player.UserId]
+
+	-- Remove Sounds
+	for _, sound in pairs(playerStats.weaponInfo.sounds) do
+		sound:Destroy()
+	end
+
 	playerStats.weaponInfo = nil
 	playerStats.comboCount = 0
 	playerStats.comboReset = nil
@@ -267,19 +304,6 @@ end
 
 local function CreateWeaponInfo(weapon, weaponTag)
 	local handle = weapon.Handle
-
-	-- Create Sounds -> Same Sounds for every weapon
-	local slash = slashSoundPrefab:clone()
-	slash.Parent = handle
-
-	local crit = critSoundPrefab:clone()
-	crit.Parent = handle
-
-	local unsheath = unsheathSoundPrefab:clone()
-	unsheath.Parent = handle
-
-	local buildingHit = buildingHitSoundPrefab:clone()
-	buildingHit.Parent = handle
 
 	local weaponInfo = {
 		weapon = weapon,
@@ -293,12 +317,6 @@ local function CreateWeaponInfo(weapon, weaponTag)
 		finalAoe = WeaponConfig[weaponTag].Range,
 		attackSpeed = WeaponConfig[weaponTag].AttackSpeed,
 		finalAttackSpeed = WeaponConfig[weaponTag].AttackSpeed,
-		sounds = {
-			unsheath = handle.Unsheath,
-			slash = handle.Slash,
-			crit = handle.CriticalSlash,
-			buildingHit = handle.BuildingHit,
-		},
 	}
 
 	return weaponInfo
@@ -317,7 +335,14 @@ local function setupWeapon(weapon, weaponTag)
 	end)
 end
 
+-- TODO : Implement after Refactoring
+-- local function InstantiateWeapon(position, weaponPrefab)
+-- 	local weapon = weaponPrefab:Clone()
+-- 	-- weapon:GetTa
+-- end
+
 local function SetupWeaponInstances(weaponTag)
+	-- TODO : Fix Double Setup
 	for _, weapon in pairs(CollectionService:GetTagged(weaponTag)) do
 		setupWeapon(weapon, weaponTag)
 	end
@@ -330,3 +355,7 @@ end
 SetupWeaponInstances("WoodenClub")
 SetupWeaponInstances("IronMace")
 SetupWeaponInstances("IronAxe")
+
+-- EVENTS SETUP
+attackEvent.OnServerEvent:Connect(Attack)
+attackHitEvent.OnServerEvent:Connect(WeaponDamage)

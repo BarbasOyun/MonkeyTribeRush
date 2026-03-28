@@ -9,6 +9,7 @@ local ServerEvents = require(ServerScriptService.Server.ServerEvents)
 
 -- Enemies Spawn
 --local targetEnemiesNbr = 5 -- TODO : AI Director
+local STREAM_SPAWN_INITIAL_COOLDOWN = 3
 local streamSpawnDeltaTime = 7
 local streamSpawnDeltaTimeRange = 2
 local streamSpawnNbr = 2
@@ -193,25 +194,23 @@ end
 
 local function MoveToPlayer()
 	for _, enemy in ipairs(enemies) do
-		pcall(function()
-			if not enemy then
-				return
-			end
+		if not enemy then
+			return
+		end
 
-			local humanoid = enemy.Humanoid
+		local humanoid = enemy.Humanoid
 
-			if not humanoid then
-				return
-			end
+		if not humanoid then
+			return
+		end
 
-			local target = getNearestPlayer(enemy.HumanoidRootPart.Position)
+		local target = getNearestPlayer(enemy.HumanoidRootPart.Position)
 
-			if target then
-				humanoid:MoveTo(target.PrimaryPart.Position)
-			else
-				humanoid:MoveTo(enemy.HumanoidRootPart.Position) -- Stop if no target found
-			end
-		end)
+		if target then
+			humanoid:MoveTo(target.PrimaryPart.Position)
+		else
+			humanoid:MoveTo(enemy.HumanoidRootPart.Position) -- Stop if no target found
+		end
 	end
 
 	task.wait(1)
@@ -340,6 +339,7 @@ end)
 
 -- Do
 task.spawn(function()
+	task.wait(STREAM_SPAWN_INITIAL_COOLDOWN)
 	StreamSpawn()
 end)
 

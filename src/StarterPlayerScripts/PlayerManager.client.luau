@@ -57,14 +57,19 @@ local cardTexts = { cards[1].TextLabel, cards[2].TextLabel, cards[3].TextLabel }
 local blur = nil
 
 -- Sounds
-local levelUpSound = playerGui.Sounds.LvlUp
-local augmentMenuSound = playerGui.Sounds.AugmentMenu
-local augmentPickSound = playerGui.Sounds.AugmentPick
-local getXPSound = playerGui.Sounds.GetXp
+local soundFolder = playerGui.Sounds
+local levelUpSound = soundFolder.LvlUp
+local augmentMenuSound = soundFolder.AugmentMenu
+local augmentPickSound = soundFolder.AugmentPick
+local getXPSound = soundFolder.GetXp
+local stageCompletedSound = soundFolder.StageCompleted
 
 local humanoid = player.Character.Humanoid
-humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+
+local function DisableFall()
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+end
 
 local function OnLevelUp(level, waitingLevels)
 	levelUpButton.Text = "(A) " .. waitingLevels .. " Lvl+"
@@ -214,15 +219,13 @@ end
 -- Respawn
 local function OnCharacterAdded(character)
 	-- print("Character Added")
-	local humanoid2 = character.Humanoid
+	humanoid = character.Humanoid
 
-	-- Disable Fall
-	humanoid2:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-	humanoid2:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	DisableFall()
 
 	-- Re-fetch UI elements on respawn
 	-- Player
-	uiInfos = player:WaitForChild("UIInfos")
+	uiInfos = player.UIInfos -- :WaitForChild("UIInfos")
 	xpBarCurrent = uiInfos.XpBarCurrent
 	xpBarMax = uiInfos.XpBarMax
 
@@ -329,6 +332,7 @@ end)
 Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
 	nextStageTimer.Text = "Next Stage In 10s"
 	nextStageTimer.Visible = true
+	stageCompletedSound:Play()
 end)
 
 Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
@@ -339,4 +343,7 @@ Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
 	end
 end)
 
+-- Do
+
+DisableFall()
 InitUi()

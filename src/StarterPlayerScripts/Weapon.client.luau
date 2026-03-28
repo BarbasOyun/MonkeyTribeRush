@@ -17,7 +17,6 @@ local isLClickDown = false
 
 -- Remote Events
 local attackEvent = Events.ToolAttack
-local equipEvent = Events.ToolEquip
 local attackHitEvent = Events.AttackHit
 
 -- Animations
@@ -43,17 +42,18 @@ local function loadAllAnimations()
 	table.insert(animationTracks, verticalSlash)
 end
 
-equipEvent.OnClientEvent:Connect(function(isEquipped)
-	--print("Weapon Equipped: " .. tostring(isEquipped) .. " for player: " .. LocalPlayer.Name)
-end)
-
 -- On Respawn
 local function onCharacterAdded(newCharacter)
-	print("Character Added for player: " .. player.Name)
+	-- print("Character Added for player: " .. player.Name)
 	animator = newCharacter:WaitForChild("Humanoid"):WaitForChild("Animator")
 	table.clear(animationTracks)
 	loadAllAnimations()
 end
+
+-- OnWeaponEquipped Event
+-- Events.ToolEquip.OnClientEvent:Connect(function(isEquipped, sounds)
+-- 	print("Weapon Equipped: " .. tostring(isEquipped) .. " for player: " .. LocalPlayer.Name)
+-- end)
 
 --Attack Triggered
 attackEvent.OnClientEvent:Connect(function(animationId, animationSpeed)
@@ -62,7 +62,7 @@ attackEvent.OnClientEvent:Connect(function(animationId, animationSpeed)
 	animationTracks[animationId]:AdjustSpeed(animationSpeed)
 end)
 
---Try to Attack
+-- Inputs
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	--print("Input detected: " .. tostring(input.UserInputType) .. "Game processed: " .. tostring(gameProcessed))
 	if gameProcessed then
@@ -70,7 +70,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		attackEvent:FireServer(player)
+		-- attackEvent:FireServer(player)
 		isLClickDown = true
 	end
 end)
@@ -85,12 +85,15 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	end
 end)
 
+-- Ask Permission to Attack
 RunService.Heartbeat:Connect(function()
+	task.wait()
 	if isLClickDown then
 		attackEvent:FireServer(player)
 	end
 end)
 
--- Run
 player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Do
 loadAllAnimations()
