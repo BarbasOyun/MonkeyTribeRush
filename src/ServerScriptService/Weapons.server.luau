@@ -23,6 +23,8 @@ local attackHitEvent = Events.AttackHit
 
 -- Players
 local expectingAttack = {}
+
+-- Weapon
 local weaponHitParam = OverlapParams.new()
 weaponHitParam.FilterType = Enum.RaycastFilterType.Include
 weaponHitParam.FilterDescendantsInstances = { workspace.WeaponHit }
@@ -110,14 +112,17 @@ end
 
 local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	local attackPosition = weaponInfo.attackPoint.WorldCFrame
-	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.range, weaponHitParam)
+	local hits = workspace:GetPartBoundsInRadius(attackPosition.Position, weaponInfo.finalAoe, weaponHitParam)
 	local humanoidsHit = {}
 	local isBuilding = false
 
 	-- DEBUG
-	-- Gears.ExecuteFor(0.5, function()
-	-- 	Gears.DrawSphere(attackPosition.Position, weaponInfo.range)
-	-- end)
+	Gears.ExecuteFor(0.5, function()
+		Gears.DrawSphere(attackPosition.Position, weaponInfo.finalAoe)
+	end)
+
+	-- VFX
+	weaponInfo.attackVFX:Emit(5)
 
 	for _, hit in ipairs(hits) do
 		-- print("Hit Part: " .. hit.Name)
@@ -151,8 +156,8 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	Gears.safePlaySound(weaponInfo.sounds.slash)
 end
 
--- Attack Callback
-local function WeaponDamage(player)
+-- After Animation
+local function AttackCallback(player)
 	-- Check if The Call is Legit
 	if not expectingAttack[player.UserId] then
 		print("Unexpected AttackHit from player: " .. player.Name)
@@ -309,7 +314,7 @@ local function CreateWeaponInfo(weapon, weaponTag)
 		weapon = weapon,
 		weaponSize = weapon:GetScale(),
 		handle = handle,
-		attackPoint = weapon.Handle.AttackPoint,
+		attackPoint = handle.AttackPoint,
 		weaponType = WeaponConfig[weaponTag].WeaponType,
 		damage = WeaponConfig[weaponTag].BaseDamage,
 		finalAttackDamage = WeaponConfig[weaponTag].BaseDamage,
@@ -317,6 +322,7 @@ local function CreateWeaponInfo(weapon, weaponTag)
 		finalAoe = WeaponConfig[weaponTag].Range,
 		attackSpeed = WeaponConfig[weaponTag].AttackSpeed,
 		finalAttackSpeed = WeaponConfig[weaponTag].AttackSpeed,
+		attackVFX = handle.AttackPoint.AttackHitVFX,
 	}
 
 	return weaponInfo
@@ -358,4 +364,4 @@ SetupWeaponInstances("IronAxe")
 
 -- EVENTS SETUP
 attackEvent.OnServerEvent:Connect(Attack)
-attackHitEvent.OnServerEvent:Connect(WeaponDamage)
+attackHitEvent.OnServerEvent:Connect(AttackCallback)

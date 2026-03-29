@@ -132,11 +132,22 @@ function playersStats.CalculateAttackDamage(playerStat)
 end
 
 function playersStats.CalculateAoe(playerStat)
-	if not playerStat.weaponInfo then
+	local weaponInfo = playerStat.weaponInfo
+	if not weaponInfo then
 		return
 	end
 
-	playerStat.weaponInfo.finalAoe = playerStat.weaponInfo.range * Gears.IncreaseToMultiplier(playerStat.aoe)
+	local aoeMultiplier = Gears.IncreaseToMultiplier(playerStat.aoe)
+
+	-- Attack VFX
+	local size = 2 * aoeMultiplier -- 1 = Base VFX Size
+	local keypoints = {
+		NumberSequenceKeypoint.new(0, size),
+		NumberSequenceKeypoint.new(1, size),
+	}
+	weaponInfo.attackVFX.Size = NumberSequence.new(keypoints)
+
+	weaponInfo.finalAoe = weaponInfo.range * aoeMultiplier
 end
 
 function playersStats.ApplyStats(player)
