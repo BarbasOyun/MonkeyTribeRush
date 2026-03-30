@@ -18,7 +18,7 @@ return {
 	Reroll = createRemoteEvent("Reroll"),
 	AugmentPick = createRemoteEvent("AugmentPick"),
 	XpPickup = createRemoteEvent("XpPickup"),
-	platformTouched = createRemoteEvent("PlatformTouched"),
+	PlatformTouched = createRemoteEvent("PlatformTouched"),
 	-- Upgrade Tree
 	UpgradeTree = createRemoteEvent("UpgradeTree"),
 	-- Stage

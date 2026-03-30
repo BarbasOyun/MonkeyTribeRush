@@ -95,9 +95,8 @@ local function onPlatformTouched(hit, index)
 		return
 	end
 
-	-- print("Player Touched Platform")
 	table.insert(teleportedPlayers, player)
-	Events.platformTouched:FireClient(player) -- Feedback
+	Events.PlatformTouched:FireClient(player) -- Feedback
 
 	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
 		return SafeTeleport(placeId, { player })
@@ -171,17 +170,18 @@ local function CreatePlayerData(player)
 	bananasUi.Name = "BananasUi"
 
 	-- Get bananas from DataStore
-	local success, value = pcall(function()
+	local success, bananas = pcall(function()
 		return BananasData:GetAsync(player.UserId)
 	end)
 
-	local bananasCount = value
+	local bananasCount = bananas
 	bananasUi.Value = bananasCount
 	-- print(player.Name .. " Has " .. bananasCount .. " Bananas")
 
+	-- Bananas -> index 1
 	table.insert(playersData[player.UserId], bananasCount)
 
-	-- Add UpgradeTree Data
+	-- UpgradeTree Data -> index  2
 	table.insert(playersData[player.UserId], {}) -- UpgradeTree Array = Index2
 
 	for _, upgradeType in ipairs(UpgradeTree.augmentType) do
@@ -196,31 +196,35 @@ local function CreatePlayerData(player)
 		})
 	end
 
-	-- Add Rate Limit
+	-- Add Rate Limit -> index 3
 	table.insert(playersData[player.UserId], false)
 
-	-- Store BananasUi TODO : Refactor
+	-- Store BananasUi TODO : Refactor -> index 4
 	table.insert(playersData[player.UserId], bananasUi)
 
 	Events.GetFullStageData:FireClient(player, UpgradeTree.MAX_INCREMENTS, playersData[player.UserId])
 end
 
 local function LvlUpUpgrade(player, index)
+	-- Callback State : 0 = false, 1 = true, 2 = loading
 	local playerData = playersData[player.UserId]
 
-	-- Rate Limit
+	-- Rate Limiting
 	if playerData[3] then
-		Events.UpgradeTree:FireClient(player, false)
+		Events.UpgradeTree:FireClient(player, 2)
 		return
 	end
 	playerData[3] = true
+
+	task.wait(UPGRADE_DELTA_TIME)
 
 	local bananasCount = playerData[1]
 	local upgradeData = playerData[2][index]
 
 	-- Check Conditions
 	if bananasCount < upgradeData.cost or upgradeData.lvl >= 10 then
-		Events.UpgradeTree:FireClient(player, false)
+		playerData[3] = false
+		Events.UpgradeTree:FireClient(player, 0)
 		return
 	end
 
@@ -238,17 +242,16 @@ local function LvlUpUpgrade(player, index)
 	local bSuccess, bErr = pcall(function()
 		BananasData:SetAsync(player.UserId, bananasCount)
 	end)
-	task.wait(UPGRADE_DELTA_TIME)
-
-	playerData[3] = false
 
 	-- Finish
 	upgradeData.lvl = newLvl
 	upgradeData.statValue = CalcStat(upgradeType, upgradeData.lvl)
 	upgradeData.cost = CalcCost(upgradeData.lvl)
+	playerData[1] = bananasCount
 	playerData[4].Value = bananasCount
 
-	Events.UpgradeTree:FireClient(player, true, index, upgradeData)
+	playerData[3] = false
+	Events.UpgradeTree:FireClient(player, 1, index, upgradeData)
 end
 
 -- Player Added

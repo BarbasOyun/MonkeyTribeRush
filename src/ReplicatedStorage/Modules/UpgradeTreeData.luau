@@ -2,7 +2,7 @@ return {
 	MAX_BANANAS = 10_000,
 	MAX_INCREMENTS = 10,
 	BASE_COST = 100,
-	COST_MULTIPLIER = 1.2,
+	COST_MULTIPLIER = 1.4,
 	augmentType = { -- TODO : Unify with augments?
 		"attackDamage",
 		"attackSpeed",

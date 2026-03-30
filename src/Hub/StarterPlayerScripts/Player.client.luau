@@ -3,8 +3,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Events = ReplicatedStorage.Shared
 local player = game.Players.LocalPlayer
 
-local platformTouched = ReplicatedStorage.Shared.PlatformTouched -- :WaitForChild("PlatformTouched")
-
 -- UI
 local uiData = player:WaitForChild("UIData")
 local bananasUi = uiData.BananasUi
@@ -125,8 +123,8 @@ end
 
 player.CharacterAdded:Connect(OnCharacterAdded)
 
-platformTouched.OnClientEvent:Connect(function()
-	-- print("Platform Touched Event")
+Events.PlatformTouched.OnClientEvent:Connect(function()
+	-- print("Client Platform Touched Event")
 	platformSound:Play()
 	loadingText.Visible = true
 end)
@@ -144,10 +142,16 @@ end)
 
 -- Upgrade Tree Events
 
-Events.UpgradeTree.OnClientEvent:Connect(function(success, index, upgradeData)
+Events.UpgradeTree.OnClientEvent:Connect(function(state, index, upgradeData)
+	if state == 2 then
+		-- print("Loading")
+		return
+	end
+
 	loadingFrame.Visible = false
 
-	if success then
+	if state == 1 then
+		-- print("Upgrade Success")
 		upgradeTreeData[index].lvl = upgradeData.lvl
 		upgradeTreeData[index].statValue = upgradeData.statValue
 		upgradeTreeData[index].cost = upgradeData.cost

@@ -53,13 +53,14 @@ local function IncrementCombo(playerStat)
 	end
 
 	-- Reset Combo Count after 2 sec of not Attacking
-	if playerStat.comboReset then
-		task.cancel(playerStat.comboReset)
-	end
+	-- if playerStat.comboReset then
+	-- 	task.cancel(playerStat.comboReset)
+	-- end
 
-	playerStat.comboReset = task.delay(2, function()
-		playerStat.comboCount = 0
-	end)
+	-- playerStat.comboReset = task.delay(2, function()
+	-- 	print("Combo Reset")
+	-- 	playerStat.comboCount = 0
+	-- end)
 end
 
 local function HitBuilding(building, finalDamage, player, playerStat)
