@@ -63,10 +63,11 @@ local function IncrementCombo(playerStat)
 end
 
 local function HitBuilding(building, finalDamage, player, playerStat)
+	-- Add Building HP
 	if not buildingsHealth[building] then
 		local healthMod = Gears.FloatRandom(1, 2)
-		-- print(building.Name .. " Health Mod : " .. healthMod)
 		local baseHealth = 0 -- Update for more Materials
+		-- print(building.Name .. " Health Mod : " .. healthMod)
 
 		if building.Parent and building.Parent:HasTag("WoodMaterial") then
 			baseHealth = 100 * healthMod
@@ -79,35 +80,50 @@ local function HitBuilding(building, finalDamage, player, playerStat)
 
 	buildingsHealth[building] -= finalDamage
 
+	if buildingsHealth[building] > 0 then
+		return
+	end
+
 	-- Building Destroyed
-	if buildingsHealth[building] <= 0 then
-		building:Destroy()
-		buildingsHealth[building] = nil
-		playerStat.destruction.Value += 1
-		MapGenerator.StageProgress()
+	building:Destroy()
+	buildingsHealth[building] = nil
+	playerStat.destruction.Value += 1
+	MapGenerator.StageProgress()
 
-		-- Enemy Spawn
-		local enemyRoll = math.random(0, 100)
-		if enemyRoll < 33 then -- 1 / 3
-			Gears.SpawnEnemyCircle(player.Character.PrimaryPart.Position)
-		end
+	-- Enemy Spawn
+	local enemyRoll = math.random(0, 100)
+	if enemyRoll < 33 then -- 1 / 3
+		Gears.SpawnEnemyCircle(player.Character.PrimaryPart.Position)
+	end
 
-		-- Banana / Stick Loot
-		local roll = math.random(0, 100)
+	-- Banana / Stick Loot
+	local roll = math.random(0, 100)
 
-		if roll < 70 then
-			if roll < 10 then
-				Gears.SpawnStick(building.Position)
-			end
-			return
-		end
-
-		for _ = 1, math.random(1, 3) do
+	if roll < 30 then
+		-- Bananas
+		for _ = 1, math.random(1, 2) do
 			task.spawn(function()
 				Gears.SpawnBanana(building.Position)
 			end)
 		end
+	elseif roll > 95 then
+		Gears.SpawnStick(building.Position)
 	end
+
+	return
+
+	-- if roll < 70 then
+	-- 	if roll < 10 then
+	-- 		Gears.SpawnStick(building.Position)
+	-- 	end
+	-- 	return
+	-- end
+
+	-- for _ = 1, math.random(1, 2) do
+	-- 	task.spawn(function()
+	-- 		Gears.SpawnBanana(building.Position)
+	-- 	end)
+	-- end
 end
 
 local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
@@ -117,9 +133,9 @@ local function HitDetection(player, playerStat, weaponInfo, finalDamage, isCrit)
 	local isBuilding = false
 
 	-- DEBUG
-	Gears.ExecuteFor(0.5, function()
-		Gears.DrawSphere(attackPosition.Position, weaponInfo.finalAoe)
-	end)
+	-- Gears.ExecuteFor(0.5, function()
+	-- 	Gears.DrawSphere(attackPosition.Position, weaponInfo.finalAoe)
+	-- end)
 
 	-- VFX
 	weaponInfo.attackVFX:Emit(5)

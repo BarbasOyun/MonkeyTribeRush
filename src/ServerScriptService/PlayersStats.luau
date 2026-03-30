@@ -159,7 +159,6 @@ function playersStats.ApplyStats(player)
 	-- UTILS
 	humanoid.WalkSpeed = playerStat.mobility
 	humanoid.JumpPower = 40 + playerStat.mobility / 2
-	-- playerStat.currentXp.Value = playerStat.currentXp.Value -- Update XP Bar
 
 	playerStat.finalPickupRange = playerStat.pickupRange * Gears.IncreaseToMultiplier(playerStat.increasedPickupRange)
 

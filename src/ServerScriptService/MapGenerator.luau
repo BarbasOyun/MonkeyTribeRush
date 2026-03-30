@@ -48,7 +48,7 @@ local isWaitingForNextStage = false
 
 local currentMapId = math.random(1, #maps)
 
-local currentStage = 0
+local currentStage = 1
 local stageBuildingNbr = 3
 local currentMusic = nil
 

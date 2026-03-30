@@ -31,7 +31,7 @@ local mainGui = playerGui:WaitForChild("MainGui")
 local barUpdaters = {}
 local deathUI = mainGui.DeathUI
 
--- Player Data
+-- Player
 local levelText = mainGui.LevelText
 local levelUpButton = mainGui.LvlUpButton
 
@@ -43,8 +43,10 @@ local bananaText = mainGui.BananaNbrText
 local sticksText = mainGui.StickNbrText
 
 -- Stage
+local currentStage = 1
 local stageProgressBG = mainGui.StageProgressBG
 local stageProgressBar = stageProgressBG.StageProgressBar
+local stageNbrText = stageProgressBG.StageNbr
 local swarmSkull = ReplicatedStorage.Prefabs.SwarmSkull
 local nextStageTimer = mainGui.NextStageTimer
 local robotLvlText = mainGui.RobotIcon.RobotLvlText
@@ -329,10 +331,11 @@ Events.EnemyLevelUp.OnClientEvent:Connect(function(globalEnemiesLevel)
 	robotLvlText.Text = "Lvl " .. globalEnemiesLevel
 end)
 
-Events.CurrentStageChanged.OnClientEvent:Connect(function(currentStage)
+Events.CurrentStageChanged.OnClientEvent:Connect(function(newStage)
 	nextStageTimer.Text = "Next Stage In 10s"
 	nextStageTimer.Visible = true
 	stageCompletedSound:Play()
+	currentStage = newStage
 end)
 
 Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
@@ -340,6 +343,7 @@ Events.NextStageTimerTick.OnClientEvent:Connect(function(currentTimer)
 
 	if currentTimer == 0 then
 		nextStageTimer.Visible = false
+		stageNbrText.Text = "Stage " .. currentStage
 	end
 end)
 

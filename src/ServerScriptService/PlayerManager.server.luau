@@ -137,9 +137,6 @@ local function GameOver()
 		return SafeTeleport(hubPlaceId, Players:GetPlayers())
 	end)
 
-	print("Hub TP success : ")
-	print(success)
-
 	if not success then
 		print(errorMsg)
 	end
@@ -186,7 +183,7 @@ local function GrabOrb(character, orb, player)
 	-- Lerp Orb
 	local startPos = orb.CFrame
 
-	local steps = 30
+	local steps = 20
 	local progress = 0
 	local speed = 1 / steps / 4
 	local acceleration = (1 / steps - speed) / (steps / 2)

@@ -21,7 +21,7 @@ local swarmNbrRange = 2
 
 -- Enemies
 local ENEMY_FOLDER = workspace.WeaponHit.Enemies
-local MAX_ENEMIES = 200
+local MAX_ENEMIES = 100
 
 local enemies = {}
 local moveToTasks = {}
@@ -200,17 +200,19 @@ local function MoveToPlayer()
 
 		local humanoid = enemy.Humanoid
 
-		if not humanoid then
-			return
-		end
+		-- if not humanoid then
+		-- 	return
+		-- end
 
-		local target = getNearestPlayer(enemy.HumanoidRootPart.Position)
+		local success, err = pcall(function()
+			local target = getNearestPlayer(enemy.HumanoidRootPart.Position)
 
-		if target then
-			humanoid:MoveTo(target.PrimaryPart.Position)
-		else
-			humanoid:MoveTo(enemy.HumanoidRootPart.Position) -- Stop if no target found
-		end
+			if target then
+				humanoid:MoveTo(target.PrimaryPart.Position)
+			else
+				humanoid:MoveTo(enemy.HumanoidRootPart.Position) -- Stop if no target found
+			end
+		end)
 	end
 
 	task.wait(1)
