@@ -1,28 +1,30 @@
-local ReplicatedStorage = game.ReplicatedStorage
 local TeleportService = game:GetService("TeleportService")
+local MemoryStoreService = game:GetService("MemoryStoreService")
+local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
-
-local DataStoreService = game:GetService("DataStoreService")
-local BananasData = DataStoreService:GetDataStore("Bananas")
-local UpgradeTreeData = DataStoreService:GetDataStore("UpgradeTree")
+local ReplicatedStorage = game.ReplicatedStorage
 
 local Events = require(ReplicatedStorage.Shared.Events)
 local SafeTeleport = require(ReplicatedStorage.Shared.SafeTeleport)
 local UpgradeTree = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 
-local UPGRADE_DELTA_TIME = 1
+-- DataStores
+local BananasData = DataStoreService:GetDataStore("Bananas")
+local UpgradeTreeData = DataStoreService:GetDataStore("UpgradeTree")
 
 -- Place TP
-local placeId = 126527146316982
+local SessionMap = MemoryStoreService:GetSortedMap("GameInstances")
+local PLACE_ID = 126527146316982
 
--- local gameInstances = {}
-local platforms = { workspace.Game1Platform.Platform } -- TODO : Add Platform2 = workspace.Game2Platform.Platform
-local teleportedPlayers = {}
+local platforms = { workspace.Game1Platform.Platform, workspace.Game2Platform.Platform }
+local playersLoadingTp = {}
 
+-- Upgrade Tree
 local playersData = {}
+local UPGRADE_DELTA_TIME = 1
 
--- Marketplace
+-- Store
 local productFunctions = {}
 local hundredDonationId = 3563342388
 local thousandDonationId = 3563893138
@@ -58,6 +60,7 @@ local function SafeIncrement(dataStore, userId, amount)
 end
 
 -- Store
+
 productFunctions[hundredDonationId] = function(receipt, player)
 	return true
 end
@@ -87,66 +90,10 @@ end
 
 MarketplaceService.ProcessReceipt = processReceipt
 
--- TP Place
-local function onPlatformTouched(hit, index)
-	local player = game.Players:GetPlayerFromCharacter(hit.Parent)
+-- Upgrade Tree
 
-	if not player or table.find(teleportedPlayers, player) then
-		return
-	end
-
-	table.insert(teleportedPlayers, player)
-	Events.PlatformTouched:FireClient(player) -- Feedback
-
-	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
-		return SafeTeleport(placeId, { player })
-	end)
-
-	-- gameInstances[index] = jobId
-	local playerIndex = table.find(teleportedPlayers, player)
-	if playerIndex then
-		teleportedPlayers[playerIndex] = nil
-	end
-end
-
-local function SetupPlatforms()
-	for i, platform in ipairs(platforms) do
-		platform.Touched:Connect(function(hit)
-			onPlatformTouched(hit, i + 1)
-		end)
-	end
-end
-
-local function createRoomAndTeleport(players)
-	local success, reservedCode = pcall(function()
-		return TeleportService:ReserveServerAsync(placeId)
-	end)
-
-	if success then
-		TeleportService:TeleportToPrivateServer(placeId, reservedCode, players)
-	else
-		warn("Failed to reserve server!")
-	end
-end
-
-local function FollowedPlayer(player)
-	local followPlayerId = player.FollowUserId
-
-	if followPlayerId and followPlayerId ~= 0 then
-		local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
-			return TeleportService:GetPlayerPlaceInstanceAsync(followPlayerId)
-		end)
-
-		if success then
-			TeleportService.TeleportToPlaceInstance(placeId, jobId, player)
-		else
-			warn(errorMsg)
-		end
-	end
-end
-
--- Upgrade Tree Logic
 -- TODO : Move in UpgradeTree Module
+
 local function CalcCost(lvl) -- type
 	local totalMultiplier = math.pow(UpgradeTree.COST_MULTIPLIER, lvl)
 	return math.floor(UpgradeTree.BASE_COST * totalMultiplier)
@@ -232,14 +179,14 @@ local function LvlUpUpgrade(player, index)
 	local newLvl = upgradeData.lvl + 1
 
 	-- Datastore -> Increment Lvl
-	local success, err = pcall(function()
+	pcall(function()
 		UpgradeTreeData:SetAsync(upgradeType .. "_" .. player.UserId, newLvl) -- TODO : UpgradeTreeService Function
 	end)
 
 	bananasCount = math.max(0, bananasCount - upgradeData.cost)
 
 	-- Datastore -> Remove Bananas
-	local bSuccess, bErr = pcall(function()
+	pcall(function()
 		BananasData:SetAsync(player.UserId, bananasCount)
 	end)
 
@@ -253,6 +200,86 @@ local function LvlUpUpgrade(player, index)
 	playerData[3] = false
 	Events.UpgradeTree:FireClient(player, 1, index, upgradeData)
 end
+
+-- TP Place
+local function FollowedPlayer(player)
+	local followPlayerId = player.FollowUserId
+
+	if followPlayerId and followPlayerId ~= 0 then
+		local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
+			return TeleportService:GetPlayerPlaceInstanceAsync(followPlayerId)
+		end)
+
+		if success then
+			TeleportService.TeleportToPlaceInstance(placeId, jobId, player)
+		else
+			warn(errorMsg)
+		end
+	end
+end
+
+local function joinOrCreateInstance(player, instanceIndex)
+	local success, accessCode = pcall(function()
+		-- Check Existing Instance
+		return SessionMap:GetAsync(tostring(instanceIndex))
+	end)
+
+	local options = Instance.new("TeleportOptions")
+
+	-- Instance Exists -> Join
+	if success and accessCode then
+		print(player.Name .. "Joining existing instance: " .. instanceIndex)
+		options.ReservedServerAccessCode = accessCode
+		TeleportService:TeleportAsync(PLACE_ID, { player }, options)
+		return
+	end
+
+	-- Instance doesn't exist -> Create
+	print("Creating new instance for index: " .. instanceIndex)
+
+	-- Reserve new server
+	local newCode = TeleportService:ReserveServerAsync(PLACE_ID)
+
+	print("Reserved new server with code: " .. newCode)
+
+	-- Save to MemoryStore for 1 hour
+	pcall(function()
+		SessionMap:SetAsync(tostring(instanceIndex), newCode, 3600)
+	end)
+
+	-- Teleport the creator
+	options.ReservedServerAccessCode = newCode
+	TeleportService:TeleportAsync(PLACE_ID, { player }, options)
+end
+
+local function SetupPlatforms()
+	for i, platform in ipairs(platforms) do
+		local isReady = true
+
+		platform.Touched:Connect(function(hit)
+			local player = game.Players:GetPlayerFromCharacter(hit.Parent)
+
+			if not player or not isReady or table.find(playersLoadingTp, player) then
+				return
+			end
+
+			table.insert(playersLoadingTp, player)
+			isReady = false
+			Events.PlatformTouched:FireClient(player) -- Feedback
+			joinOrCreateInstance(player, i)
+
+			local playerIndex = table.find(playersLoadingTp, player)
+			if playerIndex then
+				playersLoadingTp[playerIndex] = nil
+			end
+
+			task.wait(1) -- Prevent multiple triggers
+			isReady = true
+		end)
+	end
+end
+
+-- Events
 
 -- Player Added
 Players.PlayerAdded:Connect(function(player)
