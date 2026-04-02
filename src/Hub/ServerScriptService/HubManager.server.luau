@@ -6,7 +6,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game.ReplicatedStorage
 
 local Events = require(ReplicatedStorage.Shared.Events)
-local SafeTeleport = require(ReplicatedStorage.Shared.SafeTeleport)
 local UpgradeTree = require(ReplicatedStorage.Shared.Modules.UpgradeTreeData)
 
 -- DataStores
@@ -268,10 +267,10 @@ local function SetupPlatforms()
 			Events.PlatformTouched:FireClient(player) -- Feedback
 			joinOrCreateInstance(player, i)
 
-			local playerIndex = table.find(playersLoadingTp, player)
-			if playerIndex then
-				playersLoadingTp[playerIndex] = nil
-			end
+			-- local playerIndex = table.find(playersLoadingTp, player)
+			-- if playerIndex then
+			-- 	playersLoadingTp[playerIndex] = nil
+			-- end
 
 			task.wait(1) -- Prevent multiple triggers
 			isReady = true

@@ -78,18 +78,22 @@ local function getNearestPlayer(enemyPosition)
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if PlayersStats[player.UserId].pickingAugment then
-			return nil
+			continue
 		end
 
 		local character = player.Character
-		if character and character:FindFirstChild("HumanoidRootPart") then
-			local enemyPlayerVector = (character.HumanoidRootPart.Position - enemyPosition)
-			local distance = enemyPlayerVector:Dot(enemyPlayerVector)
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
 
-			if distance < shortestDistance then
-				shortestDistance = distance
-				closestPlayer = character
-			end
+		if not character or not rootPart or character.Humanoid.Health <= 0 then
+			continue
+		end
+
+		local enemyToPlayerVector = (rootPart.Position - enemyPosition)
+		local distance = enemyToPlayerVector:Dot(enemyToPlayerVector)
+
+		if distance < shortestDistance then
+			shortestDistance = distance
+			closestPlayer = character
 		end
 	end
 
@@ -195,17 +199,12 @@ end
 local function MoveToPlayer()
 	for _, enemy in ipairs(enemies) do
 		if not enemy then
-			return
+			continue
 		end
-
-		local humanoid = enemy.Humanoid
-
-		-- if not humanoid then
-		-- 	return
-		-- end
-
-		local success, err = pcall(function()
+		pcall(function()
 			local target = getNearestPlayer(enemy.HumanoidRootPart.Position)
+			print("Target : " .. target.Name)
+			local humanoid = enemy.Humanoid
 
 			if target then
 				humanoid:MoveTo(target.PrimaryPart.Position)
@@ -288,7 +287,11 @@ local function StreamSpawn() -- Spawn Enemies constantly
 	task.wait(spawnDelta)
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		if not player.Character then
+		if
+			PlayersStats[player.UserId].pickingAugment
+			or not player.Character
+			or player.Character.Humanoid.Health <= 0
+		then
 			continue
 		end
 
@@ -340,6 +343,7 @@ ServerEvents.StageChanged.Event:Connect(function()
 end)
 
 -- Do
+
 task.spawn(function()
 	task.wait(STREAM_SPAWN_INITIAL_COOLDOWN)
 	StreamSpawn()

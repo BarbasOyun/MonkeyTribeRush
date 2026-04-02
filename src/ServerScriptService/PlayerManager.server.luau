@@ -63,7 +63,7 @@ local function SaveData()
 		local playerStats = PlayersStats[player.UserId]
 
 		local bananasDelta = playerStats.bananas.Value - playerStats.storedBananas
-		local kills = player.leaderstats.Kills.Value
+		local kills = playerStats.kills.Value or 0
 		-- local destruction = player.leaderstats.Destruction -- TODO : Save Destruction
 
 		SafeIncrement(BananasData, player.UserId, bananasDelta)
@@ -74,7 +74,7 @@ local function SaveData()
 			-- print("Save Kills")
 			playerStats.highestKills = kills
 
-			success, err = pcall(function()
+			pcall(function()
 				KillsData:SetAsync(player.UserId, kills)
 			end)
 		end
@@ -96,6 +96,27 @@ local function ResetAllData()
 	end
 end
 
+-- Stage
+
+local function GameOver()
+	print("Game Over -> Going back to Hub")
+	SaveData()
+
+	pcall(function()
+		return SafeTeleport(hubPlaceId, Players:GetPlayers())
+	end)
+
+	-- local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
+	-- 	return SafeTeleport(hubPlaceId, Players:GetPlayers())
+	-- end)
+
+	-- if not success then
+	-- 	print(errorMsg)
+	-- end
+end
+
+-- Players
+
 local function SetupPlayer(player)
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Parent = player
@@ -108,7 +129,7 @@ local function SetupPlayer(player)
 	PlayersStats.CreatePlayer(player, leaderstats, uiInfos)
 
 	local playerStat = PlayersStats[player.UserId]
-	local kills = KillsData:GetAsync(player.UserId)
+	local kills = KillsData:GetAsync(player.UserId) or 0
 	playerStat.highestKills = kills
 
 	-- Get Player's UpgradeTree
@@ -127,18 +148,6 @@ local function EquipDefaultWeapon(player)
 	-- print("Equip Default tool : " .. defaultTool)
 	if defaultTool then
 		humanoid:EquipTool(defaultTool)
-	end
-end
-
-local function GameOver()
-	print("Game Over -> Going back to Hub")
-	SaveData()
-	local success, errorMsg, currentInstance, placeId, jobId = pcall(function()
-		return SafeTeleport(hubPlaceId, Players:GetPlayers())
-	end)
-
-	if not success then
-		print(errorMsg)
 	end
 end
 
@@ -234,6 +243,45 @@ local function CalcStat(upgradeType, lvl)
 	return UpgradeTree[upgradeType].Increment * lvl
 end
 
+local function GetStatsFromUpgradeTree(player)
+	for _, upgradeType in UpgradeTree.augmentType do
+		local success, lvl = pcall(function()
+			return UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId)
+		end)
+
+		if lvl == nil or lvl <= 0 then
+			continue
+		end
+
+		local value = CalcStat(upgradeType, lvl)
+		-- print(player.Name .. " Get " .. value .. " " .. upgradeType .. " from UpgradeTree")
+		PlayersStats.AddStat(player, PlayersStats[player.UserId], upgradeType, value)
+	end
+end
+
+local function DistanceLimit(character)
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	RunService.Heartbeat:Connect(function()
+		-- Limit Velocity
+		-- if root then
+		-- 	local velocity = root.AssemblyLinearVelocity
+		-- 	if velocity.Magnitude > MAX_SPEED then
+		-- 		root.AssemblyLinearVelocity = velocity.Unit * MAX_SPEED
+		-- 	end
+		-- end
+
+		-- Limit Distance
+		local pos = root.Position
+		local flatPos = Vector2.new(pos.X, pos.Z) -- Check 2D distance
+
+		if flatPos.Magnitude > MAX_DISTANCE then -- TODO : Squared Magnitude
+			character:PivotTo(CFrame.new(Vector3.zero))
+			root.AssemblyLinearVelocity = Vector3.zero -- Reset momentum
+		end
+	end)
+end
+
 -- Events
 
 -- TODO : Refactor
@@ -265,45 +313,6 @@ Events.GetFullStageData.OnServerEvent:Connect(function(player)
 	)
 end)
 
-local function AddLimit(character)
-	local root = character:FindFirstChild("HumanoidRootPart")
-
-	RunService.Heartbeat:Connect(function()
-		-- Limit Velocity
-		-- if root then
-		-- 	local velocity = root.AssemblyLinearVelocity
-		-- 	if velocity.Magnitude > MAX_SPEED then
-		-- 		root.AssemblyLinearVelocity = velocity.Unit * MAX_SPEED
-		-- 	end
-		-- end
-
-		-- Limit Distance
-		local pos = root.Position
-		local flatPos = Vector2.new(pos.X, pos.Z) -- Check 2D distance
-
-		if flatPos.Magnitude > MAX_DISTANCE then -- TODO : Squared Magnitude
-			character:PivotTo(CFrame.new(Vector3.zero))
-			root.AssemblyLinearVelocity = Vector3.zero -- Reset momentum
-		end
-	end)
-end
-
-local function GetStatsFromUpgradeTree(player)
-	for _, upgradeType in UpgradeTree.augmentType do
-		local success, lvl = pcall(function()
-			return UpgradeTreeData:GetAsync(upgradeType .. "_" .. player.UserId)
-		end)
-
-		if lvl == nil or lvl <= 0 then
-			continue
-		end
-
-		local value = CalcStat(upgradeType, lvl)
-		-- print(player.Name .. " Get " .. value .. " " .. upgradeType .. " from UpgradeTree")
-		PlayersStats.AddStat(player, PlayersStats[player.UserId], upgradeType, value)
-	end
-end
-
 Players.PlayerAdded:Connect(function(player)
 	print(player.Name .. " has joined the game")
 
@@ -330,7 +339,7 @@ Players.PlayerAdded:Connect(function(player)
 		globalEnemiesLevel
 	)
 
-	AddLimit(character)
+	DistanceLimit(character)
 end)
 
 -- DO

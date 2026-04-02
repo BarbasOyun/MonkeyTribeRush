@@ -13,7 +13,10 @@ local levelUpEvent = Events.LevelUp -- Server = Augment Choice Made / Client = D
 local rerollEvent = Events.Reroll
 local augmentPick = Events.AugmentPick -- Server = Augment Pick State / Client = Update Levels Display
 
+-- Players
 local playersStats = {}
+
+local totalXp = 0 -- Add to Joining players
 
 -- Augment Info
 local currentAugments = {}
@@ -68,8 +71,20 @@ local defaultStats = {
 -- 	critMultiplier = 50,
 -- }
 
+local function deepCopy(original)
+	local copy = {}
+	for key, value in pairs(original) do
+		if type(value) == "table" then
+			copy[key] = deepCopy(value) -- Recursively clone nested tables
+		else
+			copy[key] = value
+		end
+	end
+	return copy
+end
+
 function playersStats.CreatePlayer(player, leaderstats, uiInfos)
-	playersStats[player.UserId] = defaultStats
+	playersStats[player.UserId] = deepCopy(defaultStats)
 	local playerStat = playersStats[player.UserId]
 
 	-- Leader Stats
@@ -105,6 +120,14 @@ function playersStats.CreatePlayer(player, leaderstats, uiInfos)
 	sticks.Name = "Sticks"
 	playerStat.sticks = sticks
 
+	playersStats.ApplyStats(player)
+	playersStats.AddXpToLvl(player, totalXp) -- Add XP From TotalXp to Joining Players
+end
+
+-- Stats Calculation + Application
+
+function playersStats.AddStat(player, playerStat, type, value)
+	playerStat[type] += value
 	playersStats.ApplyStats(player)
 end
 
@@ -197,7 +220,51 @@ function playersStats.ApplyStats(player)
 	weapon:ScaleTo(weaponInfo.weaponSize * Gears.IncreaseToMultiplier(playerStat.aoe))
 end
 
--- Level & Augments
+-- Currencies
+
+function playersStats.AddBananas(bananas)
+	for _, player in pairs(Players:GetPlayers()) do
+		playersStats[player.UserId].bananas.Value =
+			math.clamp(playersStats[player.UserId].bananas.Value + bananas, 0, UpgradeTreeData.MAX_BANANAS)
+	end
+end
+
+-- Levels
+
+-- Add XP to All Player
+function playersStats.AddXp(xpValue)
+	totalXp += xpValue
+	for _, player in pairs(Players:GetPlayers()) do
+		playersStats.AddXpToLvl(player, xpValue)
+	end
+end
+
+function playersStats.AddXpToLvl(player, xp)
+	-- print(player.Name .. " Gained : " .. xp .. " XP")
+	local playerStat = playersStats[player.UserId]
+	playerStat.currentXp.Value += xp * Gears.IncreaseToMultiplier(playerStat.increasedXp)
+
+	if playerStat.currentXp.Value >= playerStat.levelUpXp.Value then
+		playersStats.LevelUp(player, playerStat)
+	end
+end
+
+function playersStats.LevelUp(player, playerStat)
+	-- Compute XP
+	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
+	playerStat.waitingLevel += 1
+	playerStat.currentXp.Value = 0
+	playerStat.levelUpXp.Value *= 1.1
+	print(player.Name .. " Leveled Up")
+
+	playersStats.SendAugment(player, playerStat)
+	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
+
+	playersStats.AddXpToLvl(player, overXp)
+end
+
+-- Augments
+
 function playersStats.RollAugments(luck)
 	local function GetWeights()
 		-- local weights = Augments.weights
@@ -270,46 +337,6 @@ function playersStats.SendAugment(player, playerStat)
 	rerollEvent:FireClient(player, augments)
 end
 
-function playersStats.AddXpToLvl(player, xp)
-	-- print(player.Name .. " Gained : " .. xp .. " XP")
-	local playerStat = playersStats[player.UserId]
-	playerStat.currentXp.Value += xp * Gears.IncreaseToMultiplier(playerStat.increasedXp)
-
-	if playerStat.currentXp.Value >= playerStat.levelUpXp.Value then
-		playersStats.LevelUp(player)
-	end
-end
-
-function playersStats.LevelUp(player)
-	local playerStat = playersStats[player.UserId]
-
-	-- Compute XP
-	local overXp = playerStat.currentXp.Value - playerStat.levelUpXp.Value
-	playerStat.waitingLevel += 1
-	playerStat.currentXp.Value = 0
-	playerStat.levelUpXp.Value *= 1.1
-	-- print(player.Name .. " Leveled Up")
-
-	playersStats.SendAugment(player, playerStat)
-	levelUpEvent:FireClient(player, playerStat.level, playerStat.waitingLevel)
-
-	playersStats.AddXpToLvl(player, overXp)
-end
-
--- Add XP to All Player
-function playersStats.AddXp(xpValue)
-	for _, player in pairs(Players:GetPlayers()) do
-		playersStats.AddXpToLvl(player, xpValue)
-	end
-end
-
-function playersStats.AddBananas(bananas)
-	for _, player in pairs(Players:GetPlayers()) do
-		playersStats[player.UserId].bananas.Value =
-			math.clamp(playersStats[player.UserId].bananas.Value + bananas, 0, UpgradeTreeData.MAX_BANANAS)
-	end
-end
-
 local function StartAugmentPick(player)
 	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
@@ -322,11 +349,6 @@ local function StartAugmentPick(player)
 	playerStats.pickingAugment = true
 
 	positionStart[player.UserId] = player.Character.HumanoidRootPart.CFrame.Position
-end
-
-function playersStats.AddStat(player, playerStat, type, value)
-	playerStat[type] += value
-	playersStats.ApplyStats(player)
 end
 
 local function AugmentPick(player, choiceNbr)
@@ -361,15 +383,7 @@ local function AugmentPick(player, choiceNbr)
 	playersStats[player.UserId].pickingAugment = false
 end
 
-augmentPick.OnServerEvent:Connect(function(player)
-	StartAugmentPick(player)
-end)
-
-levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
-	AugmentPick(player, choiceNbr)
-end)
-
-rerollEvent.OnServerEvent:Connect(function(player)
+local function RerollAugment(player)
 	if not currentAugments[player.UserId] then
 		print("No Augments ready for : " .. player.Name)
 		return
@@ -381,6 +395,18 @@ rerollEvent.OnServerEvent:Connect(function(player)
 
 	playersStats[player.UserId].sticks.Value -= 10
 	playersStats.SendAugment(player, playersStats[player.UserId])
+end
+
+augmentPick.OnServerEvent:Connect(function(player)
+	StartAugmentPick(player)
+end)
+
+levelUpEvent.OnServerEvent:Connect(function(player, choiceNbr)
+	AugmentPick(player, choiceNbr)
+end)
+
+rerollEvent.OnServerEvent:Connect(function(player)
+	RerollAugment(player)
 end)
 
 return playersStats
