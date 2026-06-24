@@ -26,7 +26,7 @@ local defaultStats = {
 	level = 1,
 	waitingLevel = 0,
 	pickingAugment = false,
-	attackDamage = 0,
+	attackDamage = 0, -- TODO : Rename to increasedAttackDamage
 	attackSpeed = 0,
 	animationTime = 1,
 	lastAttack = 0,
@@ -44,7 +44,7 @@ local defaultStats = {
 	currentXp = nil,
 	pickupRange = 10,
 	increasedPickupRange = 0,
-	finalPickupRange = 10,
+	finalPickupRange = 10, -- TODO : Rename pickupRange
 	critChance = 5,
 	critMultiplier = 50,
 	weaponInfo = nil,
@@ -71,7 +71,7 @@ local defaultStats = {
 -- 	critMultiplier = 50,
 -- }
 
-local function deepCopy(original)
+local function deepCopy(original) -- TODO : Move to Gears
 	local copy = {}
 	for key, value in pairs(original) do
 		if type(value) == "table" then
@@ -263,7 +263,7 @@ function playersStats.LevelUp(player, playerStat)
 	playersStats.AddXpToLvl(player, overXp)
 end
 
--- Augments
+-- AUGMENTS
 
 function playersStats.RollAugments(luck)
 	local function GetWeights()
@@ -396,6 +396,8 @@ local function RerollAugment(player)
 	playersStats[player.UserId].sticks.Value -= 10
 	playersStats.SendAugment(player, playersStats[player.UserId])
 end
+
+-- EVENTS
 
 augmentPick.OnServerEvent:Connect(function(player)
 	StartAugmentPick(player)

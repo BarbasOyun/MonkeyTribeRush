@@ -20,8 +20,8 @@ Roblox Systems :<br/>
 
 ## Game Images
 
-![Game Icon](Assets/Images/Finale_Icon.png)
-![How to Play](Assets/Images/HowToPlay.png)
-![Screenshot 1](Assets/Images/MTR_ScreenShot_01.png)
-![Screenshot 2](Assets/Images/MTR_Screenshot_04.png)
-![Screenshot 3](Assets/Images/MTR_Screenshot_05.png)
+![Game Icon](assets/Finale_Icon.png)
+![How to Play](assets/HowToPlay.png)
+![Screenshot 1](assets/MTR_ScreenShot_01.png)
+![Screenshot 2](assets/MTR_Screenshot_04.png)
+![Screenshot 3](assets/MTR_Screenshot_05.png)

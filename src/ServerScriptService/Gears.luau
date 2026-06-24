@@ -164,10 +164,10 @@ function gears.NormalizeOrZero(vector2)
 end
 
 function gears.LoopValue(value, max, resetValue) -- TODO : Add min
-	local resetValue2 = resetValue or 0
+	local rValue = resetValue or 0
 
 	if value > max then
-		value = resetValue2
+		value = rValue
 	end
 
 	return value

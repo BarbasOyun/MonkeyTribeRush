@@ -85,9 +85,8 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	end
 end)
 
--- Ask Permission to Attack
+-- Ask Server to Attack
 RunService.Heartbeat:Connect(function()
-	task.wait()
 	if isLClickDown then
 		attackEvent:FireServer(player)
 	end

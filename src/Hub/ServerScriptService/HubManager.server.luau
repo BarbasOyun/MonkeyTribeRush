@@ -218,36 +218,33 @@ local function FollowedPlayer(player)
 end
 
 local function joinOrCreateInstance(player, instanceIndex)
+	-- Check Existing Instance
 	local success, accessCode = pcall(function()
-		-- Check Existing Instance
 		return SessionMap:GetAsync(tostring(instanceIndex))
 	end)
 
-	local options = Instance.new("TeleportOptions")
-
-	-- Instance Exists -> Join
-	if success and accessCode then
-		print(player.Name .. "Joining existing instance: " .. instanceIndex)
-		options.ReservedServerAccessCode = accessCode
-		TeleportService:TeleportAsync(PLACE_ID, { player }, options)
+	if not success then
+		warn("Error accessing MemoryStore: " .. tostring(accessCode))
 		return
 	end
 
-	-- Instance doesn't exist -> Create
-	print("Creating new instance for index: " .. instanceIndex)
+	-- If Instance doesn't exist -> Create
+	if not accessCode then
+		print("Creating new instance for index: " .. instanceIndex)
+		local newCode = TeleportService:ReserveServerAsync(PLACE_ID)
+		print("Reserved new server with code: " .. newCode)
+		accessCode = newCode
 
-	-- Reserve new server
-	local newCode = TeleportService:ReserveServerAsync(PLACE_ID)
+		-- Save to MemoryStore for 1 hour
+		pcall(function()
+			SessionMap:SetAsync(tostring(instanceIndex), newCode, 3600)
+		end)
+	end
 
-	print("Reserved new server with code: " .. newCode)
-
-	-- Save to MemoryStore for 1 hour
-	pcall(function()
-		SessionMap:SetAsync(tostring(instanceIndex), newCode, 3600)
-	end)
-
-	-- Teleport the creator
-	options.ReservedServerAccessCode = newCode
+	-- Join Instance
+	print(player.Name .. "Joining existing instance: " .. instanceIndex)
+	local options = Instance.new("TeleportOptions")
+	options.ReservedServerAccessCode = accessCode
 	TeleportService:TeleportAsync(PLACE_ID, { player }, options)
 end
 

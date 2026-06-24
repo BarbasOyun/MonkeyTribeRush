@@ -33,7 +33,7 @@ local MAX_DISTANCE = 250
 local XP_FRAME = 5 -- Gather xp Every X Frame
 local frameCount = 0
 
--- XpGrabRange Parameters
+-- PickupRange Parameters
 local xpPickupParam = OverlapParams.new()
 xpPickupParam.FilterType = Enum.RaycastFilterType.Include
 xpPickupParam.FilterDescendantsInstances = { workspace.XP_Orbs }
